@@ -20,16 +20,19 @@ const RussianKeyboard = ({ onKeyPress }) => {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="text-lg font-semibold text-gray-800">Russian Keyboard</h3>
+        <p className="eyebrow">Input helper</p>
+        <h3 className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 mt-0.5">
+          Russian keyboard
+        </h3>
       </div>
       <div className="card-body space-y-2">
         {rows.map((row, idx) => (
-          <div key={idx} className="flex gap-1 justify-center flex-wrap">
+          <div key={idx} className="flex gap-1.5 justify-center flex-wrap">
             {row.map((key, kidx) => (
               <button
                 key={kidx}
                 onClick={() => handleKey(key)}
-                className="px-2 py-2 bg-white hover:bg-blue-50 border border-gray-200 rounded-lg text-sm font-medium transition-colors duration-150 min-w-[32px] shadow-sm"
+                className="key"
                 type="button"
               >
                 {key === ' ' ? 'Space' : key}

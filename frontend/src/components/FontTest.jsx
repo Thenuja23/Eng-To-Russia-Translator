@@ -5,48 +5,51 @@ import React from 'react'
  * Pangram: "Съешь же ещё этих мягких французских булок, да выпей чаю"
  * Trap letters: т, м, д, г, и, п, б, ш (as specified)
  */
+const SAMPLES = [
+  { label: 'Bad Script', cls: 'font-["Bad_Script"]' },
+  { label: 'Marck Script', cls: 'font-["Marck_Script"]' },
+  { label: 'Caveat', cls: 'font-["Caveat"]' },
+  { label: 'Serif italic (fallback)', cls: 'italic font-serif' },
+]
+
 const FontTest = () => {
   const pangram = 'Съешь же ещё этих мягких французских булок, да выпей чаю'
   const trapLetters = 'т м д г и п б ш Т М Д Г И П Б Ш'
-  
+
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-4">
-      <h3 className="text-md font-semibold text-gray-700">Font Test (Pangram & Trap Letters)</h3>
-      
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm text-gray-600 mb-1">Bad Script:</p>
-          <p lang="ru" className="font-['Bad_Script'] text-xl leading-relaxed break-words">
-            {pangram}<br/>{trapLetters}
-          </p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-gray-600 mb-1">Marck Script:</p>
-          <p lang="ru" className="font-['Marck_Script'] text-xl leading-relaxed break-words">
-            {pangram}<br/>{trapLetters}
-          </p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-gray-600 mb-1">Caveat:</p>
-          <p lang="ru" className="font-['Caveat'] text-xl leading-relaxed break-words">
-            {pangram}<br/>{trapLetters}
-          </p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-gray-600 mb-1">Fallback (italic):</p>
-          <p lang="ru" className="italic text-xl leading-relaxed break-words">
-            {pangram}<br/>{trapLetters}
-          </p>
-        </div>
+    <section className="card">
+      <div className="card-header">
+        <p className="eyebrow">Pangram &amp; trap letters</p>
+        <h3 className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 mt-0.5">
+          Font test
+        </h3>
       </div>
-      
-      <p className="text-xs text-gray-500">
-        Note: Reject fonts that look like italic print. Cursive is a font - copied text stays normal Cyrillic.
-      </p>
-    </div>
+      <div className="card-body space-y-4">
+        {SAMPLES.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-xl border border-gray-200/90 dark:border-slate-700 p-4 bg-gradient-to-br from-white to-slate-50/70 dark:from-slate-800/80 dark:to-slate-900/60 transition-shadow hover:shadow-md"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600/90 dark:text-blue-400 mb-2">
+              {s.label}
+            </p>
+            <p
+              lang="ru"
+              className={`text-xl leading-relaxed break-words text-gray-900 dark:text-gray-100 ${s.cls}`}
+            >
+              {pangram}
+              <br />
+              {trapLetters}
+            </p>
+          </div>
+        ))}
+
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Fonts that look like italic print are rejected. Cursive is a font — copied text
+          stays normal Cyrillic.
+        </p>
+      </div>
+    </section>
   )
 }
 

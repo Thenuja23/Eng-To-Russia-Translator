@@ -22,30 +22,60 @@ const Flashcards = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-4">Flashcards (SRS v1)</h3>
-      <div
-        className="border-2 rounded-lg p-8 text-center min-h-[150px] cursor-pointer hover:bg-gray-50"
-        onClick={() => setFlipped(!flipped)}
-      >
-        {!flipped ? (
-          <div>
-            <p className="text-3xl mb-2" lang="ru">{CARDS[idx].front}</p>
-            <p className="text-sm text-gray-500">Click to flip</p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-2xl mb-2">{CARDS[idx].back}</p>
-            <p className="text-sm text-gray-500">Click to flip back</p>
-          </div>
-        )}
+    <section className="card">
+      <div className="card-header flex items-baseline justify-between gap-3">
+        <div>
+          <p className="eyebrow">Memorise</p>
+          <h3 className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 mt-0.5">
+            Flashcards
+          </h3>
+        </div>
+        <span className="pill bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900">
+          {idx + 1} / {CARDS.length}
+        </span>
       </div>
-      <div className="flex gap-2 justify-center mt-4">
-        <button onClick={prev} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" type="button">Prev</button>
-        <button onClick={next} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" type="button">Next</button>
+      <div className="card-body space-y-4">
+        <button
+          type="button"
+          onClick={() => setFlipped(!flipped)}
+          aria-label={flipped ? 'Show Russian word' : 'Show translation'}
+          className="w-full min-h-[170px] rounded-2xl border border-dashed border-blue-200 dark:border-blue-900/70
+                     bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/70
+                     dark:from-slate-800 dark:via-slate-800 dark:to-indigo-950/40
+                     p-8 flex flex-col items-center justify-center gap-2 transition-all duration-300
+                     hover:shadow-lg hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          {!flipped ? (
+            <>
+              <p className="text-4xl font-medium text-gray-900 dark:text-gray-100" lang="ru">
+                {CARDS[idx].front}
+              </p>
+              <p className="text-xs uppercase tracking-widest text-gray-500 mt-2">
+                tap to reveal
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-3xl font-medium text-blue-700 dark:text-blue-300">
+                {CARDS[idx].back}
+              </p>
+              <p className="text-xs uppercase tracking-widest text-gray-500 mt-2">
+                tap to flip back
+              </p>
+            </>
+          )}
+        </button>
+
+        <div className="flex gap-2 justify-center">
+          <button onClick={prev} className="btn-secondary btn-sm" type="button">
+            ← Prev
+          </button>
+          <button onClick={next} className="btn-primary btn-sm" type="button">
+            Next →
+          </button>
+        </div>
       </div>
-      <div className="text-xs text-gray-500 mt-2 text-center">Card {idx + 1}/{CARDS.length}</div>
-    </div>
+    </section>
   )
 }
 

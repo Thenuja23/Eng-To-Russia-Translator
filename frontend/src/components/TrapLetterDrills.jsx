@@ -11,38 +11,57 @@ const TRAPS = [
 
 const TrapLetterDrills = () => {
   const [current, setCurrent] = useState(0)
+  const trap = TRAPS[current]
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-4">Trap-Letter Drills</h3>
-      <div className="border rounded p-4">
-        <p className="text-sm text-gray-600 mb-2">{TRAPS[current].desc}</p>
-        <div className="flex gap-4 text-3xl justify-center my-4">
-          <span>{TRAPS[current].letters[0]}</span>
-          <span className="text-gray-400">vs</span>
-          <span>{TRAPS[current].letters[1]}</span>
+    <section className="card">
+      <div className="card-header flex items-baseline justify-between gap-3">
+        <div>
+          <p className="eyebrow">Drill</p>
+          <h3 className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 mt-0.5">
+            Trap-letter drills
+          </h3>
         </div>
-        <div lang="ru" className="font-['Bad_Script'] text-3xl text-center my-4">
-          {TRAPS[current].letters[0]}
-        </div>
-        <div className="flex gap-2 justify-center">
-          <button
-            onClick={() => setCurrent((prev) => (prev - 1 + TRAPS.length) % TRAPS.length)}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-            type="button"
+        <span className="pill bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900">
+          {current + 1} / {TRAPS.length}
+        </span>
+      </div>
+      <div className="card-body space-y-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center">{trap.desc}</p>
+
+        <div className="rounded-xl border border-gray-200/90 dark:border-slate-700 bg-gradient-to-b from-white to-gray-50/70 dark:from-slate-800/80 dark:to-slate-900/70 p-5">
+          <div className="flex items-center justify-center gap-5 text-4xl font-semibold">
+            <span className="text-gray-900 dark:text-gray-100">{trap.letters[0]}</span>
+            <span className="text-xs font-medium uppercase tracking-widest text-gray-500">
+              vs
+            </span>
+            <span className="text-gray-500">{trap.letters[1]}</span>
+          </div>
+          <div
+            lang="ru"
+            className="font-['Bad_Script'] text-4xl text-center my-5 text-blue-700 dark:text-blue-300"
           >
-            Previous
-          </button>
-          <button
-            onClick={() => setCurrent((prev) => (prev + 1) % TRAPS.length)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            type="button"
-          >
-            Next
-          </button>
+            {trap.letters[0]}
+          </div>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => setCurrent((prev) => (prev - 1 + TRAPS.length) % TRAPS.length)}
+              className="btn-secondary btn-sm"
+              type="button"
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={() => setCurrent((prev) => (prev + 1) % TRAPS.length)}
+              className="btn-primary btn-sm"
+              type="button"
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 

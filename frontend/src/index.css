@@ -3,56 +3,344 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    /* Let the browser render form controls / scrollbars for the active theme. */
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen;
+    min-height: 100vh;
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+    @apply text-gray-900 transition-colors duration-300 dark:text-gray-100;
+    /* Soft layered wash instead of a single flat gradient. */
+    background-color: #f4f7fb;
+    background-image:
+      radial-gradient(56rem 36rem at 8% -8%, rgb(219 234 254 / 0.9), transparent 60%),
+      radial-gradient(48rem 34rem at 100% 0%, rgb(237 233 254 / 0.85), transparent 55%),
+      radial-gradient(60rem 42rem at 50% 115%, rgb(219 234 254 / 0.75), transparent 60%),
+      linear-gradient(180deg, #f8fafc 0%, #eef2f9 100%);
+    background-attachment: fixed;
+  }
+
+  html.dark body {
+    background-color: #070b14;
+    background-image:
+      radial-gradient(56rem 36rem at 8% -8%, rgb(30 64 175 / 0.35), transparent 60%),
+      radial-gradient(48rem 34rem at 100% 0%, rgb(88 28 135 / 0.32), transparent 55%),
+      radial-gradient(60rem 42rem at 50% 115%, rgb(30 58 138 / 0.3), transparent 60%),
+      linear-gradient(180deg, #0b1120 0%, #070b14 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-blue-200 text-blue-950 dark:bg-blue-500/40 dark:text-blue-50;
+  }
+
+  /* Slim, themed scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.6) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(148 163 184 / 0.55);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(100 116 139 / 0.7);
   }
 }
 
 @layer components {
+  /* ---------------------------------------------------------------- cards */
   .card {
-    @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300;
+    @apply rounded-2xl border border-white/70 bg-white/85 backdrop-blur-md;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 12px 32px -18px rgb(15 23 42 / 0.28);
+    @apply transition-all duration-300;
+    @apply hover:border-white hover:shadow-[0_2px_4px_rgb(15_23_42/0.05),0_24px_48px_-24px_rgb(15_23_42/0.35)];
+    @apply dark:bg-slate-900/75 dark:border-slate-700/50;
+    @apply dark:hover:border-slate-600/70;
   }
-  
+
   .card-header {
-    @apply px-6 py-4 border-b border-gray-100;
+    @apply px-6 py-4 border-b border-gray-100/80;
+    @apply dark:border-slate-700/60;
   }
-  
+
   .card-body {
     @apply px-6 py-5;
   }
-  
+
+  /* Small uppercase label used above card titles. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600/90 dark:text-blue-400/90;
+  }
+
+  /* ------------------------------------------------------------- buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-medium;
+    @apply text-white bg-gradient-to-b from-blue-600 to-blue-700;
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset, 0 6px 16px -8px rgb(37 99 235 / 0.9);
+    @apply transition-all duration-200;
+    @apply hover:from-blue-700 hover:to-blue-800 hover:shadow-[0_8px_20px_-8px_rgb(30_64_175/0.9)];
+    @apply active:scale-[0.98];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+    @apply disabled:opacity-60 disabled:pointer-events-none;
+    @apply dark:focus-visible:ring-offset-slate-900;
   }
-  
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2.5 bg-white text-gray-700 rounded-xl font-medium border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-medium;
+    @apply bg-white/90 text-gray-700 border border-gray-200/90 shadow-sm;
+    @apply transition-all duration-200;
+    @apply hover:bg-white hover:border-gray-300 hover:text-gray-900 hover:shadow;
+    @apply hover:-translate-y-px active:translate-y-0 active:scale-[0.98];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+    @apply dark:bg-slate-800/90 dark:text-gray-200 dark:border-slate-700 dark:hover:bg-slate-700 dark:hover:border-slate-600 dark:hover:text-white;
+    @apply dark:focus-visible:ring-offset-slate-900;
   }
-  
+
   .btn-ghost {
-    @apply inline-flex items-center justify-center px-3 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors duration-200;
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-gray-600;
+    @apply transition-all duration-200;
+    @apply hover:bg-gray-100/90 hover:text-gray-900 active:scale-[0.97];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500;
+    @apply dark:text-gray-300 dark:hover:bg-slate-800 dark:hover:text-white;
   }
-  
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm rounded-lg;
+  }
+
+  /* ------------------------------------------------------------ inputs */
   .input-field {
-    @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/80 backdrop-blur-sm;
+    @apply w-full px-4 py-3 rounded-xl border bg-white/90 backdrop-blur-sm;
+    @apply border-gray-200 text-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400;
+    @apply dark:bg-slate-900/70 dark:border-slate-700 dark:text-gray-100 dark:placeholder:text-slate-500;
+    @apply dark:focus:ring-blue-500/50 dark:focus:border-blue-500;
   }
-  
+
   .textarea-field {
-    @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/80 backdrop-blur-sm resize-none font-mono text-sm;
+    @apply w-full px-4 py-3 rounded-xl border resize-none leading-relaxed;
+    @apply bg-white/90 backdrop-blur-sm border-gray-200 text-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400;
+    @apply dark:bg-slate-900/70 dark:border-slate-700 dark:text-gray-100 dark:placeholder:text-slate-500;
+    @apply dark:focus:ring-blue-500/50 dark:focus:border-blue-500;
+    font-size: 0.95rem;
+    min-height: 120px;
   }
-  
+
+  .select-field {
+    @apply text-base font-medium bg-transparent border-0 px-2 py-1 rounded-lg cursor-pointer;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500/50;
+    @apply text-gray-900 dark:text-gray-100;
+    @apply dark:[&>option]:bg-slate-900 dark:[&>option]:text-gray-100;
+  }
+
+  /* ------------------------------------------------------- misc pieces */
   .cursive-text {
     @apply text-3xl md:text-4xl lg:text-5xl leading-relaxed tracking-wide;
   }
-  
+
   .gradient-text {
     @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent;
+    @apply dark:from-blue-300 dark:via-indigo-300 dark:to-purple-300;
+    -webkit-background-clip: text;
+  }
+
+  /* Soft pill used for statuses / hints. */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  /* Rounded "key" style shared by both on-screen keyboards. */
+  .key {
+    @apply min-w-[34px] px-2 py-2 rounded-lg border text-sm font-medium;
+    @apply bg-white border-gray-200 text-gray-700 shadow-[0_1px_2px_rgb(15_23_42/0.06)];
+    @apply transition-all duration-150;
+    @apply hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 hover:-translate-y-px;
+    @apply active:translate-y-0 active:scale-95;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500;
+    @apply dark:bg-slate-800 dark:border-slate-700 dark:text-gray-200;
+    @apply dark:hover:bg-slate-700 dark:hover:border-blue-500/60 dark:hover:text-blue-300;
+  }
+
+  .key-accent {
+    @apply bg-gradient-to-b from-indigo-50 to-blue-50 border-indigo-200/70 text-indigo-700;
+    @apply hover:from-indigo-100 hover:to-blue-100 hover:border-indigo-300;
+    @apply dark:from-slate-800 dark:to-slate-800 dark:border-slate-700 dark:text-indigo-200;
+    @apply dark:hover:from-slate-700 dark:hover:to-slate-700;
+  }
+
+  /* Translation / result display block. */
+  .output-block {
+    @apply p-4 rounded-xl border break-words;
+    @apply bg-gradient-to-br from-white via-white to-blue-50/60 border-blue-100/80;
+    @apply shadow-[inset_0_1px_0_rgb(255_255_255/0.9)];
+    @apply dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40 dark:border-slate-700;
+    @apply dark:shadow-none;
+  }
+
+  .output-block-empty {
+    @apply text-gray-400 dark:text-slate-400;
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Dark-mode coverage for the literal Tailwind utilities used across the many
+   feature components. These selectors are more specific than the single-class
+   utilities, so they win without !important.
+   ------------------------------------------------------------------------- */
+@layer utilities {
+  /* Surfaces */
+  .dark .bg-white {
+    background-color: rgb(15 23 42 / 0.85);
+  }
+  .dark .bg-gray-50 {
+    background-color: rgb(30 41 59 / 0.7);
+  }
+  .dark .bg-gray-100 {
+    background-color: rgb(51 65 85 / 0.7);
+  }
+  .dark .bg-gray-200 {
+    background-color: rgb(51 65 85);
+  }
+  .dark .bg-gray-300 {
+    background-color: rgb(71 85 105);
+  }
+  .dark .bg-slate-50 {
+    background-color: rgb(30 41 59 / 0.7);
+  }
+
+  /* Hover surfaces */
+  .dark .hover\:bg-gray-50:hover {
+    background-color: rgb(30 41 59 / 0.7);
+  }
+  .dark .hover\:bg-gray-100:hover {
+    background-color: rgb(51 65 85 / 0.7);
+  }
+  .dark .hover\:bg-gray-300:hover {
+    background-color: rgb(71 85 105);
+  }
+  .dark .hover\:bg-blue-100:hover {
+    background-color: rgb(30 58 138 / 0.45);
+  }
+
+  /* Text */
+  .dark .text-gray-900,
+  .dark .text-gray-800,
+  .dark .text-gray-700 {
+    color: rgb(226 232 240);
+  }
+  .dark .text-gray-600 {
+    color: rgb(203 213 225);
+  }
+  .dark .text-gray-500 {
+    color: rgb(148 163 184);
+  }
+  .dark .text-blue-700 {
+    color: rgb(147 197 253);
+  }
+  .dark .text-blue-600 {
+    color: rgb(96 165 250);
+  }
+  .dark .text-green-700 {
+    color: rgb(134 239 172);
+  }
+  .dark .text-red-600 {
+    color: rgb(252 165 165);
+  }
+  .dark .text-amber-800 {
+    color: rgb(253 224 71);
+  }
+
+  /* Borders / dividers */
+  .dark .border-gray-100 {
+    border-color: rgb(51 65 85 / 0.6);
+  }
+  .dark .border-gray-200,
+  .dark .border {
+    border-color: rgb(51 65 85);
+  }
+  .dark .border-gray-300 {
+    border-color: rgb(71 85 105);
+  }
+  .dark .border-white\/50 {
+    border-color: rgb(148 163 184 / 0.14);
+  }
+  .dark .border-amber-200 {
+    border-color: rgb(180 83 9 / 0.5);
+  }
+
+  /* Amber (offline-glossary) notice */
+  .dark .bg-amber-50 {
+    background-color: rgb(120 53 15 / 0.25);
+  }
+
+  /* Gradient surfaces used by the output blocks and the cursive preview */
+  .dark .from-gray-50 {
+    --tw-gradient-from: #1e293b;
+    --tw-gradient-to: rgb(30 41 59 / 0);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  .dark .to-blue-50 {
+    --tw-gradient-to: #0f172a;
+  }
+  .dark .to-green-50 {
+    --tw-gradient-to: #052e16;
+  }
+  .dark .from-purple-50 {
+    --tw-gradient-from: #2e1065;
+    --tw-gradient-to: rgb(46 16 101 / 0);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  .dark .from-indigo-50 {
+    --tw-gradient-from: #1e1b4b;
+    --tw-gradient-to: rgb(30 27 75 / 0);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  .dark .via-purple-50 {
+    --tw-gradient-to: rgb(88 28 135 / 0);
+    --tw-gradient-stops: var(--tw-gradient-from), #3b0764, var(--tw-gradient-to);
+  }
+  .dark .to-pink-50 {
+    --tw-gradient-to: #500724;
+  }
+  .dark .hover\:from-purple-100:hover {
+    --tw-gradient-from: #3b0764;
+    --tw-gradient-to: rgb(59 7 100 / 0);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  .dark .hover\:to-blue-100:hover {
+    --tw-gradient-to: #1e3a8a;
+  }
+}
+
+/* ----------------------------------------------------------- animations */
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes fadeIn {
@@ -63,5 +351,42 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Gentle pulse for "working…" indicators. */
+.animate-soft-pulse {
+  animation: softPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-soft-pulse {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Neater printing: only the practice sheet body prints. */
+@media print {
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  nav,
+  .no-print {
+    display: none !important;
   }
 }

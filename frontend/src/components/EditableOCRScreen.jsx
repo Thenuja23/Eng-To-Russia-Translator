@@ -1,40 +1,92 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import CopyButton from './CopyButton'
 
+/**
+ * Editable OCR review screen.
+ * The user can correct the recognised text line by line before it is used.
+ */
 const EditableOCRScreen = ({ initialText = '', onSave }) => {
-  const [text, setText] = useState(initialText)
-  const [lines, setLines] = useState(initialText.split('\n'))
+  const [lines, setLines] = useState(() => initialText.split('\n'))
+  const [status, setStatus] = useState(null) // null | 'saved'
+  const [dirty, setDirty] = useState(false)
+
+  // Re-sync when the parent supplies a new OCR result.
+  useEffect(() => {
+    setLines(initialText.split('\n'))
+    setDirty(false)
+    setStatus(null)
+  }, [initialText])
+
+  const text = lines.join('\n')
 
   const handleLineChange = (idx, value) => {
-    const newLines = [...lines]
-    newLines[idx] = value
-    setLines(newLines)
-    setText(newLines.join('\n'))
+    setLines((prev) => {
+      const next = [...prev]
+      next[idx] = value
+      return next
+    })
+    setDirty(true)
+    setStatus(null)
+  }
+
+  const handleSave = () => {
+    if (onSave) onSave(text)
+    setDirty(false)
+    setStatus('saved')
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-4">Editable OCR Results</h3>
-      <p className="text-sm text-gray-600 mb-4">Edit recognized text line by line</p>
-      <div className="space-y-2">
-        {lines.map((line, idx) => (
-          <textarea
-            key={idx}
-            value={line}
-            onChange={(e) => handleLineChange(idx, e.target.value)}
-            className="w-full border rounded p-2 text-sm min-h-[60px]"
-            lang="ru"
-          />
-        ))}
+    <section className="card">
+      <div className="card-header flex items-center justify-between gap-3">
+        <div>
+          <p className="eyebrow">Review</p>
+          <h3 className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 mt-0.5">
+            Editable OCR result
+          </h3>
+        </div>
+        <div className="flex items-center gap-2">
+          {dirty && (
+            <span className="pill hidden sm:inline-flex bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900">
+              unsaved
+            </span>
+          )}
+          <CopyButton text={text} />
+        </div>
       </div>
-      <button
-        onClick={() => onSave && onSave(text)}
-        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        type="button"
-      >
-        Save Edits
-      </button>
-      <p className="text-xs text-gray-500 mt-2">Original Russian shown beside English in final view (per spec)</p>
-    </div>
+      <div className="card-body space-y-3">
+        {lines.map((line, idx) => (
+          <div key={idx} className="flex items-start gap-2">
+            <span
+              aria-hidden="true"
+              className="mt-2.5 w-6 text-right text-[11px] font-medium text-gray-500 tabular-nums select-none"
+            >
+              {idx + 1}
+            </span>
+            <textarea
+              value={line}
+              onChange={(e) => handleLineChange(idx, e.target.value)}
+              className="textarea-field !min-h-[48px] !text-sm !py-2 flex-1"
+              lang="ru"
+              aria-label={`OCR line ${idx + 1}`}
+              rows={1}
+            />
+          </div>
+        ))}
+        <div className="flex items-center gap-3 pt-1">
+          <button onClick={handleSave} className="btn-primary btn-sm" type="button">
+            Save edits
+          </button>
+          <span aria-live="polite" className="text-sm">
+            {status === 'saved' && (
+              <span className="text-green-700 dark:text-green-400 font-medium">✓ Edits saved</span>
+            )}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Saved text feeds the tap-a-word reader above.
+        </p>
+      </div>
+    </section>
   )
 }
 
