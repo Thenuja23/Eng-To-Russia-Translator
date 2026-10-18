@@ -1,0 +1,16 @@
+{
+  "name": "Russian Cursive Learning & Reading Assistant",
+  "short_name": "Russian Cursive",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "Help learning Russian cursive writing and reading",
+  "icons": [
+    {
+      "src": "vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
