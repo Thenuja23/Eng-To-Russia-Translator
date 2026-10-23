@@ -64,9 +64,39 @@ def _score(text):
     return len(_CYR.findall(text or ""))
 
 
+# Tesseract is much faster and far more accurate than EasyOCR on *printed*
+# text — including Latin/digit tokens such as course codes and e-mail
+# addresses, which the mixed Cyrillic+Latin EasyOCR model reliably confuses
+# (CS101 -> "CS1Ol", "anna@example.com" -> "anna@example com"). A confident
+# Tesseract pass therefore wins immediately; handwriting photos usually yield
+# low confidence and fall through to the EasyOCR ensemble.
+_TESS_MIN_CONF = 55.0
+
+
 def _ocr_with_pytesseract(img):
+    """Return (text, mean word confidence 0-100)."""
     import pytesseract
-    return pytesseract.image_to_string(img, lang="rus+eng")
+
+    data = pytesseract.image_to_data(
+        img, lang="rus+eng", output_type=pytesseract.Output.DICT
+    )
+    lines = {}
+    confs = []
+    for i, word in enumerate(data.get("text", [])):
+        word = (word or "").strip()
+        if not word:
+            continue
+        try:
+            conf = float(data["conf"][i])
+        except (TypeError, ValueError, KeyError, IndexError):
+            conf = -1.0
+        if conf < 0:  # -1 marks non-text elements
+            continue
+        key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
+        lines.setdefault(key, []).append(word)
+        confs.append(conf)
+    text = "\n".join(" ".join(words) for _, words in sorted(lines.items()))
+    return text, (sum(confs) / len(confs) if confs else 0.0)
 
 
 def _ocr_with_easyocr(img):
@@ -75,7 +105,7 @@ def _ocr_with_easyocr(img):
     if reader is None:
         raise RuntimeError(f"easyocr unavailable: {_READER_ERROR}")
     lines = reader.readtext(np.array(img), detail=0)
-    return "\n".join(lines)
+    return "\n".join(lines), None
 
 
 @router.post("/ocr", response_model=OCRResponse)
@@ -97,19 +127,29 @@ async def ocr(file: UploadFile = File(...)):
 
     best = ("", "none")
     errors = []
+    ran_ok = 0
     for variant_name, variant in variants:
         for engine, fn in (("pytesseract", _ocr_with_pytesseract), ("easyocr", _ocr_with_easyocr)):
             try:
-                text = fn(variant) or ""
+                text, conf = fn(variant)
+                text = text or ""
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{engine}({variant_name}): {e}")
                 continue
+            ran_ok += 1
             if _score(text) > _score(best[0]) or (best[0] == "" and text.strip()):
                 best = (text, f"{engine}/{variant_name}")
+            if engine == "pytesseract":
+                # Confident print text: Tesseract is the better engine, stop.
+                if text.strip() and (conf or 0.0) >= _TESS_MIN_CONF:
+                    return OCRResponse(text=text.strip(), engine=f"{engine}/{variant_name}")
             # good enough early exit: two or more Cyrillic words recognised
-            if _score(text) >= 10:
+            elif _score(text) >= 10:
                 return OCRResponse(text=text.strip(), engine=f"{engine}/{variant_name}")
 
-    if best[0].strip() or best[1] != "none":
+    if best[0].strip():
         return OCRResponse(text=best[0].strip(), engine=best[1])
-    raise HTTPException(500, "OCR unavailable: " + " | ".join(errors[:4]))
+    if ran_ok == 0:
+        raise HTTPException(500, "OCR unavailable: " + " | ".join(errors[:4]))
+    # The engines ran fine but the image contains no text (blank/blurred page).
+    return OCRResponse(text="", engine="none")

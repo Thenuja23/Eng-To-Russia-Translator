@@ -12,4 +12,6 @@ Pillow>=9.0
 numpy<2
 opencv-python-headless>=4.8
 easyocr>=1.7
-# pytesseract also works if the tesseract binary is installed (brew install tesseract)
+# Preferred OCR engine for printed text (brew install tesseract tesseract-lang).
+# Without the binary the /ocr route falls back to EasyOCR automatically.
+pytesseract>=0.3.10

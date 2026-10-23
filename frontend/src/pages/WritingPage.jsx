@@ -122,6 +122,15 @@ export default function WritingPage() {
       <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
         {/* Hero */}
         <header className="text-center space-y-4 pt-2">
+          {/* Company logo */}
+          <div className="mx-auto h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-[#ffffff] p-2 shadow-lg ring-1 ring-black/5 grid place-items-center">
+            <img
+              src="/logo.png"
+              alt="Company logo"
+              className="h-full w-full object-contain"
+              onError={(e) => { if (e.currentTarget.parentElement) e.currentTarget.parentElement.style.display = 'none' }}
+            />
+          </div>
           <p className="eyebrow">Type · Speak · Snap a photo</p>
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight gradient-text leading-[1.1]">
             Russian Cursive Learning

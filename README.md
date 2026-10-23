@@ -14,5 +14,22 @@ Completed basic project scaffolding with:
 Backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload`
 Frontend: `cd frontend && npm install && npm run dev`
 
+### OCR engines (image / camera input)
+Printed text is read with **Tesseract** when the binary is available, falling
+back to **EasyOCR** (which also handles handwriting / cursive better).
+Install the better print engine with Russian language data:
+
+```bash
+brew install tesseract tesseract-lang   # macOS
+```
+
+### Accuracy suite
+```bash
+cd backend && PYTHONPATH=. python3 scripts/accuracy_test.py
+```
+Scores translation quality, sentence completeness, verbatim token protection
+(e-mails, URLs, dates, times, numbers, course codes) and OCR against known
+ground truth. Exits non-zero if token protection drops below 100 %.
+
 ## Structure
 See folder structure as specified in project requirements.

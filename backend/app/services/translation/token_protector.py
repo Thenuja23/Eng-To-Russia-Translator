@@ -6,7 +6,15 @@ from typing import List, Dict, Tuple, Optional
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 URL_RE = re.compile(r"https?://\S+|www\.[^\s]+")
 DATE_RE = re.compile(r"\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\.\d{1,2}\.\d{2})\b")
-NUMBER_RE = re.compile(r"\b\d+[.,]?\d*(?:\s*[%‰])?\b")
+TIME_RE = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
+# Thousands-separated numbers must be ONE token ("1,234.56", "1.234,56"),
+# otherwise the model injects junk between the two placeholders and the
+# value never reappears verbatim. Plain decimals ("1234.56") fall to the
+# second alternative. The trailing % / ‰ suffix is optional.
+_NUMBER_TAIL = r"(?:[.,]\d+)?(?:\s*[%‰])?"
+NUMBER_RE = re.compile(
+    rf"\b\d{{1,3}}(?:[,.]\d{{3}})+{_NUMBER_TAIL}|\b\d+{_NUMBER_TAIL}"
+)
 COURSE_CODE_RE = re.compile(r"\b[A-ZА-ЯЁ]{2,6}[-_]\d{2,4}\b", re.IGNORECASE)
 
 # Capitalised Russian words are treated as candidate proper names, but only when
@@ -88,6 +96,8 @@ class TokenProtector:
         for m in EMAIL_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
         for m in DATE_RE.finditer(text):
+            tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
+        for m in TIME_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
         for m in COURSE_CODE_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))

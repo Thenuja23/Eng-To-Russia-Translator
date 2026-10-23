@@ -11,6 +11,40 @@ import FeedbackForm from './components/FeedbackForm'
 import ThemeToggle from './components/ThemeToggle'
 import ImageInput from './components/ImageInput'
 
+/**
+ * Company logo mark. Falls back to the Я monogram if the logo file
+ * cannot be loaded, and sits on a white plate so it stays visible in
+ * both light and dark themes (the logo PNG is transparent).
+ */
+function BrandMark() {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <span
+        aria-hidden="true"
+        className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-lg font-bold shadow-md shadow-blue-600/30"
+      >
+        я
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className="grid h-9 w-9 place-items-center rounded-xl p-1 shadow-sm ring-1 ring-black/5 bg-[#ffffff]"
+      title="Company logo"
+    >
+      <img
+        src="/logo.png"
+        alt="Company logo"
+        className="h-full w-full object-contain"
+        onError={() => setFailed(true)}
+      />
+    </span>
+  )
+}
+
 export default function App() {
   const [tab, setTab] = useState('write')
   const [ocrText, setOcrText] = useState('привет мир')
@@ -31,12 +65,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center gap-3 md:gap-4">
           {/* Brand */}
           <div className="flex items-center gap-2.5 shrink-0 select-none">
-            <span
-              aria-hidden="true"
-              className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-lg font-bold shadow-md shadow-blue-600/30"
-            >
-              я
-            </span>
+            <BrandMark />
             <span className="hidden sm:block leading-tight">
               <span className="block text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100">
                 Cursive&nbsp;RU
@@ -163,9 +192,22 @@ export default function App() {
         )}
       </main>
 
-      <footer className="no-print py-6 text-center text-xs text-gray-500 dark:text-gray-500 border-t border-gray-200/70 dark:border-slate-800">
-        Cursive&nbsp;RU — two-stage translation (Opus&nbsp;MT) · your text is never
-        sent anywhere else
+      <footer className="no-print py-6 text-center text-xs text-gray-500 dark:text-gray-500 border-t border-gray-200/70 dark:border-slate-800 space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <img
+            src="/logo.png"
+            alt="Company logo"
+            className="h-6 w-6 object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+          <span className="font-medium text-gray-600 dark:text-gray-400">
+            Built by the team behind Cursive&nbsp;RU
+          </span>
+        </div>
+        <p>
+          Cursive&nbsp;RU — two-stage translation (Opus&nbsp;MT) · your text is never
+          sent anywhere else
+        </p>
       </footer>
     </div>
   )
