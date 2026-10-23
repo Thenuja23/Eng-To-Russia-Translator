@@ -209,8 +209,8 @@ export default function App() {
           </span>
         </div>
         <p>
-          Cursive&nbsp;RU — two-stage translation (Opus&nbsp;MT) · your text is never
-          sent anywhere else
+          Cursive&nbsp;RU — two-stage translation (Opus&nbsp;MT) by default · optional AI
+          runs only when the server has provider keys
         </p>
       </footer>
     </div>
