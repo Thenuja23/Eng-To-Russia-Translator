@@ -10,6 +10,7 @@ import EditableOCRScreen from './components/EditableOCRScreen'
 import FeedbackForm from './components/FeedbackForm'
 import ThemeToggle from './components/ThemeToggle'
 import ImageInput from './components/ImageInput'
+import AiStudio from './components/AiStudio'
 
 /**
  * Company logo mark. Falls back to the Я monogram if the logo file
@@ -56,6 +57,7 @@ export default function App() {
     { id: 'write', label: 'Write', icon: '✍️', hint: 'Translate & see cursive' },
     { id: 'learn', label: 'Learn', icon: '📚', hint: 'Alphabet, drills, cards' },
     { id: 'tools', label: 'Tools', icon: '🛠️', hint: 'OCR, tap-a-word, feedback' },
+    { id: 'ai', label: 'AI', icon: '✨', hint: 'ChatGPT + Claude + Perplexity consensus' },
     { id: 'fonts', label: 'Font Test', icon: '🔤', hint: 'Compare cursive fonts' },
   ]
 
@@ -178,6 +180,8 @@ export default function App() {
             <FeedbackForm />
           </div>
         )}
+
+        {tab === 'ai' && <AiStudio />}
 
         {tab === 'fonts' && (
           <div className="max-w-7xl mx-auto p-4 md:p-8 animate-fade-in">

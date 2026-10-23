@@ -5,7 +5,11 @@ import PhoneticKeyboard from '../components/PhoneticKeyboard'
 import CopyButton, { CopyBothButton, CopyAllButton } from '../components/CopyButton'
 import { latinToCyrillic } from '../lib/phonetic'
 import { translateText } from '../lib/api'
+import { speakText } from '../lib/speech'
+import { transliterate } from '../lib/translit'
 import ImageInput from '../components/ImageInput'
+import AiAssist from '../components/AiAssist'
+import HistoryPanel from '../components/HistoryPanel'
 
 const CURSIVE_STYLES = [
   { id: 'cursive1', label: 'Bad Script' },
@@ -30,23 +34,61 @@ const Section = ({ eyebrow, title, action, children, className = '' }) => (
   </section>
 )
 
-/** Large translated/source text panel with a language badge. */
-const OutputBlock = ({ lang, label, children }) => (
-  <div className="output-block min-h-[80px]">
-    <span className="pill mb-2 bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900">
-      {lang}
-    </span>
-    <div
-      lang={lang === 'EN' ? 'en' : 'ru'}
-      className="text-2xl md:text-3xl font-medium break-words text-gray-900 dark:text-gray-100"
-    >
-      {children || <span className="output-block-empty text-base font-normal">…</span>}
+/** Large translated/source text panel with a language badge, listening and
+ *  an optional Cyrillic→Latin reading aid. */
+const OutputBlock = ({ lang, label, children, speakLang, translit = false }) => {
+  const [showTranslit, setShowTranslit] = useState(false)
+  const text = typeof children === 'string' ? children : ''
+
+  return (
+    <div className="output-block min-h-[80px]">
+      <span className="pill mb-2 bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900">
+        {lang}
+      </span>
+      <div
+        lang={lang === 'EN' ? 'en' : 'ru'}
+        className="text-2xl md:text-3xl font-medium break-words text-gray-900 dark:text-gray-100"
+      >
+        {children || <span className="output-block-empty text-base font-normal">…</span>}
+      </div>
+
+      {(speakLang || translit) && text.trim() && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {speakLang && (
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => speakText(text, speakLang)}
+              title="Read aloud with your browser's speech engine"
+            >
+              🔊 Listen
+            </button>
+          )}
+          {translit && (
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setShowTranslit((v) => !v)}
+              aria-expanded={showTranslit}
+            >
+              {showTranslit ? 'Hide transliteration' : 'aA Transliteration'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {translit && showTranslit && text.trim() && (
+        <p className="mt-2 text-sm italic text-gray-500 dark:text-gray-400 break-words">
+          {transliterate(text)}
+        </p>
+      )}
+
+      {label && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{label}</p>
+      )}
     </div>
-    {label && (
-      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{label}</p>
-    )}
-  </div>
-)
+  )
+}
 
 export default function WritingPage() {
   const [mode, setMode] = useState('en-ru')
@@ -116,6 +158,25 @@ export default function WritingPage() {
   }, [translate])
 
   const busy = loading || ocrLoading
+
+  const historyCurrent =
+    mode === 'en-ru'
+      ? { text: en, translation: transEnRu, src: 'en', tgt: 'ru' }
+      : mode === 'ru-cursive'
+        ? { text: ru, translation: transRuEn, src: 'ru', tgt: 'en' }
+        : { text: ru, translation: '', src: 'ru', tgt: 'en' }
+
+  const restoreHistory = useCallback((item) => {
+    if (item.src === 'ru') {
+      setMode('ru-cursive')
+      setRu(item.text)
+      setTransRuEn(item.translation)
+    } else {
+      setMode('en-ru')
+      setEn(item.text)
+      setTransEnRu(item.translation)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -246,8 +307,15 @@ export default function WritingPage() {
                 title="Russian — Block"
                 action={<CopyButton text={transEnRu} />}
               >
-                <OutputBlock lang="RU">{transEnRu}</OutputBlock>
+                <OutputBlock lang="RU" speakLang="ru" translit>{transEnRu}</OutputBlock>
               </Section>
+              <AiAssist
+                source={en}
+                translation={transEnRu}
+                src="en"
+                tgt="ru"
+                onUse={setTransEnRu}
+              />
               <CursiveRenderer text={transEnRu} style={cursiveStyle} />
             </div>
           </div>
@@ -296,8 +364,25 @@ export default function WritingPage() {
                   <p className="text-lg font-medium break-words text-gray-900 dark:text-gray-100">
                     {transRuEn || <span className="output-block-empty text-base font-normal">…</span>}
                   </p>
+                  {transRuEn?.trim() && (
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm mt-3"
+                      onClick={() => speakText(transRuEn, 'en')}
+                      title="Read the English translation aloud"
+                    >
+                      🔊 Listen
+                    </button>
+                  )}
                 </div>
               </Section>
+              <AiAssist
+                source={ru}
+                translation={transRuEn}
+                src="ru"
+                tgt="en"
+                onUse={setTransRuEn}
+              />
             </div>
 
             <div className="space-y-6">
@@ -306,7 +391,7 @@ export default function WritingPage() {
                 title="Russian — Block"
                 action={<CopyButton text={ru} />}
               >
-                <OutputBlock lang="RU">{ru}</OutputBlock>
+                <OutputBlock lang="RU" speakLang="ru" translit>{ru}</OutputBlock>
               </Section>
               <CursiveRenderer text={ru} style={cursiveStyle} />
             </div>
@@ -347,12 +432,14 @@ export default function WritingPage() {
                 title="Russian — Block"
                 action={<CopyButton text={ru} />}
               >
-                <OutputBlock lang="RU">{ru}</OutputBlock>
+                <OutputBlock lang="RU" speakLang="ru" translit>{ru}</OutputBlock>
               </Section>
               <CursiveRenderer text={ru} style={cursiveStyle} />
             </div>
           </div>
         )}
+
+        <HistoryPanel current={historyCurrent} onRestore={restoreHistory} />
       </div>
     </div>
   )

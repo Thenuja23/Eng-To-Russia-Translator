@@ -50,3 +50,59 @@ export async function ocrImage(file) {
   if (!res.ok) throw new Error(await parseError(res))
   return res.json()
 }
+
+// ---------------------------------------------------------------- AI (optional)
+
+let aiStatusPromise = null
+
+/** Provider availability. Cached after the first successful call. */
+export async function aiStatus() {
+  if (!aiStatusPromise) {
+    aiStatusPromise = fetch(`${API}/ai/status`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await parseError(res))
+        return res.json()
+      })
+      .catch((err) => {
+        aiStatusPromise = null // allow a retry after a transient failure
+        throw err
+      })
+  }
+  return aiStatusPromise
+}
+
+async function aiPost(path, payload) {
+  const res = await fetch(`${API}/ai/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+/** Multi-provider translation (consensus of OpenAI/Claude/Perplexity). */
+export function aiTranslate(text, srcLang = 'en', tgtLang = 'ru') {
+  return aiPost('translate', { text, src_lang: srcLang, tgt_lang: tgtLang })
+}
+
+/** Ask the ensemble to review and improve an existing translation. */
+export function aiEnhance(text, translation, srcLang = 'en', tgtLang = 'ru') {
+  return aiPost('enhance', {
+    text,
+    translation,
+    src_lang: srcLang,
+    tgt_lang: tgtLang,
+  })
+}
+
+/** Explain meaning, grammar and cursive reading. */
+export function aiExplain({ text, translation = '', srcLang = 'en', tgtLang = 'ru', question = '' }) {
+  return aiPost('explain', {
+    text,
+    translation,
+    src_lang: srcLang,
+    tgt_lang: tgtLang,
+    question,
+  })
+}
