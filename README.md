@@ -11,6 +11,9 @@ cursive. The interface is English-first: users read English, not Russian.
 - **Russian keyboard → English** and **Latin-phonetic → Russian** input modes.
 - **Two-stage pipeline only** (source → Russian/English → target); Opus-MT by
   default, NLLB opt-in. No direct image → English shortcut.
+- **Optional Google Translate** (Cloud Translation v2) with **Auto** and
+  **Hybrid** modes: Google when configured, offline Opus-MT otherwise, and a
+  quality vote between both in Hybrid mode. Keys stay on the server.
 - **Token protection**: e-mails, URLs, dates, times, numbers (including
   `1,234.56`), course codes and Russian names survive verbatim or the response
   is flagged.
@@ -51,6 +54,37 @@ Install the better print engine with Russian language data:
 ```bash
 brew install tesseract tesseract-lang   # macOS
 ```
+
+## Optional Google Translate
+
+The translator runs fully offline by default. To add Google quality, enable the
+Cloud Translation **Basic v2** API in Google Cloud Console, create an API key,
+and add it to `backend/.env`:
+
+```bash
+GOOGLE_TRANSLATE_API_KEY=your-key
+# restart the backend after editing .env
+uvicorn app.main:app --reload
+```
+
+The Write page then offers:
+
+| Engine | Behaviour |
+| --- | --- |
+| **Auto** | Google when a key is configured, offline Opus-MT otherwise. |
+| **Best quality (hybrid)** | Runs Google and the local neural model in parallel and keeps the better, token-safe result after script, sentence, length and repetition checks. |
+| **Google Translate** | Google only, with automatic offline fallback on network/quota errors. |
+| **Offline (Opus-MT)** | Never calls the network (explicit offline choice). |
+
+Every engine uses the same token protector, so e-mails, URLs, dates, times,
+numbers, course codes and Russian names are restored verbatim. If a value is
+ever lost, the response is flagged and the UI warns the user. Google batches
+sentences into as few requests as possible, retries transient errors, and
+successful results are cached (`TRANSLATION_CACHE_TTL_SECONDS`) so the same
+debounced text is not billed twice.
+
+Without a key, `/translation/engines` reports Google as unavailable and the UI
+hides the cloud options — the app remains fully usable offline.
 
 ## Optional AI ensemble (ChatGPT + Claude + Perplexity)
 
@@ -108,6 +142,9 @@ PYTHONPATH=. python3 scripts/accuracy_test.py
 
 # AI ensemble with mock providers (no network or keys needed)
 PYTHONPATH=. python3 scripts/ai_test.py
+
+# Google Translate / hybrid / cache logic with fake providers (no key needed)
+PYTHONPATH=. python3 scripts/translation_test.py
 ```
 
 The accuracy suite scores translation quality, sentence completeness, verbatim

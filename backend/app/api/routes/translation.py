@@ -40,4 +40,17 @@ def translate(req: TranslateRequest):
 
 @router.get("/engines")
 def engines():
-    return {"engines": service.get_available_engines(), "default": settings.default_translator}
+    """Engine diagnostics for the UI.
+
+    ``engines`` stays a list of concrete engine ids for backwards
+    compatibility; ``details`` adds labels, availability and online status.
+    The Google options are reported as unavailable (with setup guidance) when
+    no key is configured, so the browser can hide them cleanly.
+    """
+    return {
+        "engines": service.get_available_engines(),
+        "available": service.get_available_engines(),
+        "default": settings.default_translator,
+        "google_configured": settings.google_translate_configured,
+        "details": service.get_engine_details(),
+    }

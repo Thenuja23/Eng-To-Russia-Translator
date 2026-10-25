@@ -21,7 +21,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from app.core.config import settings
 from app.services.translation.token_protector import TokenProtector
@@ -185,13 +185,16 @@ class Ensemble:
 
         # Protect tokens in the source, then reuse the same placeholders inside
         # the existing translation (shared values) and protect any extra token
-        # that only appears in the translation. Prefixes deliberately avoid the
-        # "_dddd" shape so a placeholder is never re-protected as a course code.
+        # that only appears in the translation. The reused source keys must be
+        # skipped, otherwise the AIX protector would treat AIT0001 as a plain
+        # course code and nest a second placeholder around it.
         src_protector, protected_src, src_map = self._protect(text, prefix="AIT")
         working = translation
         for key, value in src_map.items():
             working = working.replace(value, key)
-        tr_protector, protected_tr, tr_map = self._protect(working, prefix="AIX")
+        tr_protector, protected_tr, tr_map = self._protect(
+            working, prefix="AIX", ignore=set(src_map.keys())
+        )
 
         candidates = self._fanout(
             prompts.enhance_system(src, tgt),
@@ -292,10 +295,10 @@ class Ensemble:
 
     @staticmethod
     def _protect(
-        text: str, prefix: str = "AIT"
+        text: str, prefix: str = "AIT", ignore: Optional[Set[str]] = None
     ) -> Tuple[TokenProtector, str, Dict[str, str]]:
         protector = TokenProtector(prefix=prefix)
-        protected, mapping = protector.protect(text or "")
+        protected, mapping = protector.protect(text or "", ignore=ignore)
         return protector, protected, mapping
 
     @staticmethod

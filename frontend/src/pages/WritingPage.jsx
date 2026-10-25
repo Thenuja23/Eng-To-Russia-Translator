@@ -4,7 +4,7 @@ import RussianKeyboard from '../components/RussianKeyboard'
 import PhoneticKeyboard from '../components/PhoneticKeyboard'
 import CopyButton, { CopyBothButton, CopyAllButton } from '../components/CopyButton'
 import { latinToCyrillic } from '../lib/phonetic'
-import { translateText } from '../lib/api'
+import { translateText, translationEngines } from '../lib/api'
 import { speakText } from '../lib/speech'
 import { transliterate } from '../lib/translit'
 import ImageInput from '../components/ImageInput'
@@ -17,6 +17,48 @@ const CURSIVE_STYLES = [
   { id: 'cursive3', label: 'Caveat' },
   { id: 'cursive4', label: 'Serif Italic (fallback)' },
 ]
+
+const FALLBACK_ENGINES = [
+  {
+    id: 'auto',
+    label: 'Auto (recommended)',
+    description: 'Uses the best available engine on the server.',
+    available: true,
+    online: false,
+  },
+  {
+    id: 'opustmt',
+    label: 'Offline (Opus-MT)',
+    description: 'Runs entirely on this machine.',
+    available: true,
+    online: false,
+  },
+]
+
+const ENGINE_NAMES = {
+  google: 'Google Translate',
+  opustmt: 'Offline · Opus-MT',
+  nllb: 'Offline · NLLB',
+  hybrid: 'Hybrid',
+  fallback: 'Offline glossary',
+  none: 'No engine',
+}
+
+function engineOptionLabel(option) {
+  if (option.id === 'auto') {
+    return option.resolved === 'google' ? 'Auto · Google Translate' : 'Auto (recommended)'
+  }
+  return option.label
+}
+
+function engineBadge(meta) {
+  if (!meta || !meta.engine || meta.engine === 'none') return ''
+  const engine = meta.chosen_engine || meta.engine
+  const name = ENGINE_NAMES[engine] || engine
+  const confidence =
+    typeof meta.confidence === 'number' ? ` · ${Math.round(meta.confidence * 100)}%` : ''
+  return `${name}${confidence}`
+}
 
 /** Card with an eyebrow label, title and an action slot on the right. */
 const Section = ({ eyebrow, title, action, children, className = '' }) => (
@@ -102,26 +144,90 @@ export default function WritingPage() {
   const [cursiveStyle, setCursiveStyle] = useState('cursive1')
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrError, setOcrError] = useState('')
-
-  const translate = useCallback(async (text, src, tgt) => {
-    if (!text || !text.trim()) {
-      setNotice('')
-      return ''
-    }
+  const [engine, setEngine] = useState(() => {
     try {
-      setLoading(true)
-      const data = await translateText(text, src, tgt)
-      setNotice(
-        data.meta?.fallback
-          ? data.meta.notice || 'Using the limited offline glossary.'
-          : '',
-      )
-      return data.translated_text ?? ''
-    } catch (e) {
-      setNotice(`Translation failed: ${e.message}`)
-      return ''
-    } finally {
-      setLoading(false)
+      return localStorage.getItem('etr-translator-engine') || 'auto'
+    } catch {
+      return 'auto'
+    }
+  })
+  const [engineOptions, setEngineOptions] = useState(FALLBACK_ENGINES)
+  const [translationMeta, setTranslationMeta] = useState({})
+
+  const translate = useCallback(
+    async (text, src, tgt) => {
+      if (!text || !text.trim()) {
+        setNotice('')
+        setTranslationMeta((previous) => {
+          const key = `${src}-${tgt}`
+          if (!(key in previous)) return previous
+          const next = { ...previous }
+          delete next[key]
+          return next
+        })
+        return ''
+      }
+      try {
+        setLoading(true)
+        const data = await translateText(text, src, tgt, engine)
+        const meta = { ...(data.meta || {}), confidence: data.confidence }
+        setTranslationMeta((previous) => ({ ...previous, [`${src}-${tgt}`]: meta }))
+
+        if (meta.fallback) {
+          setNotice(meta.notice || 'Using the limited offline glossary.')
+        } else if (meta.flag === 'PLACEHOLDER_LOSS_DETECTED') {
+          setNotice(
+            'Some protected values may have changed — please check e-mails, dates and codes.',
+          )
+        } else if (meta.engine_note) {
+          setNotice(meta.engine_note)
+        } else if (meta.primary_error) {
+          setNotice(`Translation note: ${meta.primary_error}`)
+        } else {
+          setNotice('')
+        }
+        return data.translated_text ?? ''
+      } catch (e) {
+        setNotice(`Translation failed: ${e.message}`)
+        return ''
+      } finally {
+        setLoading(false)
+      }
+    },
+    [engine],
+  )
+
+  // Engine availability comes from the backend. Google options are hidden when
+  // no key is configured; the app then stays fully offline.
+  useEffect(() => {
+    let alive = true
+    translationEngines()
+      .then((data) => {
+        if (!alive) return
+        const details = Array.isArray(data.details)
+          ? data.details.filter(
+              (item) => item.available !== false && item.id !== 'fallback',
+            )
+          : []
+        const options = details.length ? details : FALLBACK_ENGINES
+        setEngineOptions(options)
+        const ids = new Set(options.map((item) => item.id))
+        setEngine((current) => (ids.has(current) ? current : 'auto'))
+      })
+      .catch(() => {
+        if (alive) setEngineOptions(FALLBACK_ENGINES)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const changeEngine = useCallback((next) => {
+    setEngine(next)
+    try {
+      localStorage.setItem('etr-translator-engine', next)
+    } catch {
+      /* private mode — selection still works for this session */
     }
   }, [])
 
@@ -158,6 +264,12 @@ export default function WritingPage() {
   }, [translate])
 
   const busy = loading || ocrLoading
+  const activeMeta =
+    mode === 'en-ru'
+      ? translationMeta['en-ru']
+      : mode === 'ru-cursive'
+        ? translationMeta['ru-en']
+        : null
 
   const historyCurrent =
     mode === 'en-ru'
@@ -235,6 +347,37 @@ export default function WritingPage() {
 
             <div className="flex items-center gap-3">
               <label
+                htmlFor="engine-select"
+                className="eyebrow !text-gray-500 dark:!text-gray-400"
+              >
+                Translator
+              </label>
+              <select
+                id="engine-select"
+                value={engine}
+                onChange={(e) => changeEngine(e.target.value)}
+                aria-label="Translation engine"
+                title={
+                  engineOptions.find((item) => item.id === engine)?.description ||
+                  'Translation engine'
+                }
+                className="select-field !px-3 !py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
+              >
+                {engineOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {engineOptionLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <span
+              className="hidden md:block h-8 w-px bg-gray-200 dark:bg-slate-700"
+              aria-hidden="true"
+            />
+
+            <div className="flex items-center gap-3">
+              <label
                 htmlFor="font-select"
                 className="eyebrow !text-gray-500 dark:!text-gray-400"
               >
@@ -273,6 +416,22 @@ export default function WritingPage() {
             {ocrError && (
               <span className="pill !text-red-700 dark:!text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 !px-4 !py-1.5 !text-sm">
                 {ocrError}
+              </span>
+            )}
+            {!busy && activeMeta && engineBadge(activeMeta) && (
+              <span
+                className={`pill !px-3 !py-1 !text-xs ${
+                  activeMeta.engine === 'fallback' || activeMeta.primary_error
+                    ? '!text-amber-800 dark:!text-amber-300 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800'
+                    : '!text-emerald-800 dark:!text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800'
+                }`}
+                title={
+                  activeMeta.chosen_engine
+                    ? `Hybrid mode chose ${ENGINE_NAMES[activeMeta.chosen_engine] || activeMeta.chosen_engine}`
+                    : 'Engine used for the current translation'
+                }
+              >
+                {engineBadge(activeMeta)}
               </span>
             )}
           </div>

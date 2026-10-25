@@ -81,6 +81,12 @@ record("CORS header on actual POST", allow_origin in ("*", ORIGIN), f"allow-orig
 st, hdr, raw = request("GET", "/translation/engines")
 d = jget(raw)
 record("GET /translation/engines lists opustmt", st == 200 and d and "opustmt" in d.get("engines", []), raw)
+details = d.get("details", []) if d else []
+google_detail = next((item for item in details if item.get("id") == "google"), {})
+record("GET /translation/engines exposes details + Google status",
+       bool(st == 200 and isinstance(details, list) and "google_configured" in d
+            and google_detail and "available" in google_detail),
+       raw[:200])
 
 # ---------------------------------------------------------------- basic translation
 st, hdr, raw = translate("I need a visa and my passport", "en", "ru")
@@ -143,6 +149,24 @@ record("engine=nllb does not hang/crash (clear result or clear error)",
 st, hdr, raw = translate("12345 67890", "en", "ru")
 d = jget(raw)
 record("numeric-only text round-trips digits", bool(d and "12345" in d.get("translated_text", "") and "8926123" not in ""), f"{raw[:140]}")
+
+# token-only input: nothing to translate, but it must not look like a failure
+st, hdr, raw = translate("anna@example.com", "en", "ru")
+d = jget(raw) or {}
+record("token-only input avoids false failure warning",
+       st == 200 and d.get("translated_text") == "anna@example.com"
+       and not d.get("meta", {}).get("failed")
+       and d.get("meta", {}).get("engine") == "opustmt",
+       raw[:200])
+
+# plain course code without a hyphen (CS101) is data, not a failed translation
+st, hdr, raw = translate("CS101", "en", "ru")
+d = jget(raw) or {}
+record("plain course code is preserved without false failure",
+       st == 200 and d.get("translated_text") == "CS101"
+       and not d.get("meta", {}).get("failed")
+       and d.get("meta", {}).get("engine") == "opustmt",
+       raw[:200])
 
 # placeholder collision: user text literally contains a placeholder-looking token
 st, hdr, raw = translate("The code OPU_0001 must stay OPU_0001", "en", "ru")

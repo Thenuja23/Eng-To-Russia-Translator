@@ -247,7 +247,6 @@ class FallbackTranslator(Translator):
     """
 
     def __init__(self):
-        self.protector = TokenProtector(prefix="FBK_")
         self.name = "fallback-dictionary"
 
     def supports(self, src_lang: str, tgt_lang: str) -> bool:
@@ -282,8 +281,10 @@ class FallbackTranslator(Translator):
 
         table = EN_RU if s == "en" else RU_EN
 
-        # protect tokens first so numbers/emails/dates survive
-        protected, mapping = self.protector.protect(text)
+        # Protect tokens first so numbers/emails/dates survive. A fresh
+        # protector per call keeps concurrent requests isolated.
+        protector = TokenProtector(prefix="FBK")
+        protected, mapping = protector.protect(text)
 
         # 1) phrase-level first (whole protected string match)
         lowered = protected.lower().strip()
@@ -313,7 +314,7 @@ class FallbackTranslator(Translator):
                     out_parts.append(self._map_word(tok, table))
         translated = "".join(out_parts)
 
-        restored, all_restored = self.protector.restore(translated, mapping)
+        restored, all_restored = protector.restore(translated, mapping)
         # collapse double spaces created by dropped articles
         restored = re.sub(r"\s{2,}", " ", restored).strip()
 

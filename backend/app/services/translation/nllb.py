@@ -12,7 +12,8 @@ class NLLBTranslator(Translator):
     a 2.4 GB download.
     """
 
-    PREFIX = "NLB_"
+    # Match Opus-MT: underscore-free placeholders survive tokenisation better.
+    PREFIX = "NLB"
 
     def __init__(self, device: str = "cpu", model_name: str = "facebook/nllb-200-distilled-600M", warn_noncommercial: bool = True):
         self.device = device

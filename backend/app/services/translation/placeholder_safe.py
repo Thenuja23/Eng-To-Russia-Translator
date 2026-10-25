@@ -1,12 +1,14 @@
 """Placeholder-safe translation.
 
 Neural MT models sometimes drop or rewrite out-of-vocabulary placeholder tokens
-(e.g. ``OPU_0003`` -> ``OPU_003``). That would silently delete emails, dates,
-numbers or names from the user's text, which the locked spec forbids.
+(e.g. ``OPU0003`` -> ``OPU003`` or ``opu0003``). That would silently delete
+emails, dates, numbers or names from the user's text, which the locked spec
+forbids.
 
 Strategy:
 1. Translate the whole protected string (best fluency / context).
-2. If every placeholder survived (tolerating zero-padding rewrites), keep it.
+2. If every placeholder survived (tolerating case, spacing and zero-padding
+   rewrites), keep it.
 3. Otherwise retranslate segment-by-segment around the placeholders, which
    guarantees every placeholder is copied through unchanged, preserving the
    surrounding whitespace.
@@ -24,8 +26,13 @@ def placeholder_pattern(prefix: str) -> "re.Pattern":
 def tolerant_pattern(prefix: str, key: str) -> "re.Pattern":
     suffix = key[len(prefix):]
     if suffix.isdigit():
-        return re.compile(re.escape(prefix) + r"0*" + str(int(suffix)) + r"(?!\d)")
-    return re.compile(re.escape(key))
+        # Case, spacing and zero-padding are cosmetic; a match with any of
+        # those differences is still the same protected value.
+        return re.compile(
+            re.escape(prefix) + r"\s*0*" + str(int(suffix)) + r"(?!\d)",
+            re.IGNORECASE,
+        )
+    return re.compile(re.escape(key), re.IGNORECASE)
 
 
 def key_present(text: str, prefix: str, key: str) -> bool:
@@ -36,7 +43,7 @@ def translate_preserving_placeholders(
     translate_fn: Callable[[str], str],
     protected: str,
     keys: List[str],
-    prefix: str = "TPL_",
+    prefix: str = "TPL",
     is_present: Optional[Callable[[str, str], bool]] = None,
 ) -> Tuple[str, str]:
     """Translate ``protected`` while guaranteeing every key in ``keys`` survives.

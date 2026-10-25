@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     nllb_model_name: str = "facebook/nllb-200-distilled-600M"
     opusmt_ru_en: str = "Helsinki-NLP/opus-mt-ru-en"
     opusmt_en_ru: str = "Helsinki-NLP/opus-mt-en-ru"
+    # Beam search is noticeably better than greedy decoding on MarianMT, at the
+    # cost of a little latency. Set to 1 to restore greedy decoding.
+    opusmt_num_beams: int = 4
     device: str = "cpu"
     warn_nllb_noncommercial: bool = True
 
@@ -26,6 +29,31 @@ class Settings(BaseSettings):
 
     # Reject absurdly large inputs instead of blocking the worker.
     max_text_chars: int = 20_000
+
+    # ------------------------------------------------------ Google Translate ----
+    # Optional Google Cloud Translation (Basic v2) engine. Set an API key to
+    # enable the "google" engine and the "auto"/"hybrid" modes. The key is
+    # server-side only and never exposed to the browser.
+    google_translate_api_key: Optional[str] = None
+    # Convenience alias for deployments that already use GOOGLE_API_KEY.
+    google_api_key: Optional[str] = None
+    google_translate_base_url: str = (
+        "https://translation.googleapis.com/language/translate/v2"
+    )
+    google_translate_timeout_seconds: float = 20.0
+    google_translate_retries: int = 2
+    # Stay well below Google's 30k-character / 128-segment request limits.
+    google_translate_max_chars: int = 4_000
+    translation_cache_ttl_seconds: int = 900
+    translation_cache_max_entries: int = 256
+
+    @property
+    def google_translate_configured(self) -> bool:
+        return bool((self.google_translate_api_key or self.google_api_key or "").strip())
+
+    @property
+    def google_translate_key(self) -> str:
+        return (self.google_translate_api_key or self.google_api_key or "").strip()
 
     # ------------------------------------------------------------------ AI ----
     # Optional multi-provider AI ensemble (OpenAI + Anthropic Claude +

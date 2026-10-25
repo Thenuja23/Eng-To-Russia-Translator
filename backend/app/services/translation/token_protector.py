@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
@@ -16,6 +16,10 @@ NUMBER_RE = re.compile(
     rf"\b\d{{1,3}}(?:[,.]\d{{3}})+{_NUMBER_TAIL}|\b\d+{_NUMBER_TAIL}"
 )
 COURSE_CODE_RE = re.compile(r"\b[A-ZА-ЯЁ]{2,6}[-_]\d{2,4}\b", re.IGNORECASE)
+# Course codes are often written without a separator ("CS101", "COVID19").
+# Restrict this to all-uppercase stems so ordinary words with digits ("Hello123")
+# are still translated normally.
+PLAIN_CODE_RE = re.compile(r"\b[A-ZА-ЯЁ]{2,6}\d{2,4}\b")
 
 # Capitalised Russian words are treated as candidate proper names, but only when
 # they behave like names: either part of a multi-word run ("Иван Петров") or a
@@ -75,21 +79,28 @@ class ProtectedToken:
 
 
 class TokenProtector:
-    def __init__(self, prefix: str = "TPL_"):
+    def __init__(self, prefix: str = "TPL"):
         self.prefix = prefix
         self.counter = 0
         self.mapping: Dict[str, str] = {}
 
     def _make_key(self, avoid: str = "") -> str:
-        # Never generate a placeholder that already appears literally in the
-        # input, otherwise restore() would overwrite the user's own text.
+        # Never generate a placeholder that already appears in the input,
+        # otherwise restore() would overwrite the user's own text. Check the
+        # tolerant form too, because restore() is case/space tolerant.
         while True:
             self.counter += 1
             key = f"{self.prefix}{self.counter:04d}"
-            if key not in avoid:
+            if not self._tolerant_pattern(key).search(avoid):
                 return key
 
-    def protect(self, text: str) -> Tuple[str, Dict[str, str]]:
+    def protect(
+        self, text: str, ignore: Optional[Set[str]] = None
+    ) -> Tuple[str, Dict[str, str]]:
+        # ``ignore`` holds keys produced by another protector (for example the
+        # source placeholders reused inside an AI-enhanced translation). They
+        # must not be re-protected as plain course codes.
+        skip = ignore or set()
         tokens: List[ProtectedToken] = []
         for m in URL_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
@@ -100,6 +111,10 @@ class TokenProtector:
         for m in TIME_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
         for m in COURSE_CODE_RE.finditer(text):
+            tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
+        for m in PLAIN_CODE_RE.finditer(text):
+            if m.group(0) in skip:
+                continue
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
         for m in NUMBER_RE.finditer(text):
             tokens.append(ProtectedToken(self._make_key(text), m.group(0), m.start(), m.end()))
@@ -126,9 +141,14 @@ class TokenProtector:
     def _tolerant_pattern(self, key: str) -> "re.Pattern":
         suffix = key[len(self.prefix):]
         if suffix.isdigit():
-            # models sometimes rewrite EXP_0003 as EXP_003 or EXP_3
-            return re.compile(re.escape(self.prefix) + r"0*" + str(int(suffix)) + r"(?!\d)")
-        return re.compile(re.escape(key))
+            # Models sometimes rewrite EXP0003 as exp0003, EXP 0003, EXP003 or
+            # EXP3. Tolerate all of those so a cosmetic rewrite is not mistaken
+            # for data loss.
+            return re.compile(
+                re.escape(self.prefix) + r"\s*0*" + str(int(suffix)) + r"(?!\d)",
+                re.IGNORECASE,
+            )
+        return re.compile(re.escape(key), re.IGNORECASE)
 
     def key_present(self, text: str, key: str) -> bool:
         return self._tolerant_pattern(key).search(text) is not None

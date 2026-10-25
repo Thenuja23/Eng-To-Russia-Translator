@@ -269,6 +269,14 @@ def main() -> int:
     mean_sim = sum(ratios) / len(ratios) if ratios else 0.0
     print(f"  => {ocr_pass}/{ocr_total} ({ocr_pct:.0f}%)  mean char similarity {mean_sim:.2f}")
 
+    # Blank/low-content page reliability: an empty read must not be a 500.
+    blank = Image.new("RGB", (64, 64), "black")
+    blank_buf = io.BytesIO()
+    blank.save(blank_buf, format="PNG")
+    blank_res = ocr(blank_buf.getvalue())
+    print(f"  [reliability] blank page -> text={blank_res.get('text', '')!r} "
+          f"engine={blank_res.get('engine', '?')} (not scored)")
+
     # cursive (informational – known model limitation)
     if os.path.exists(CURSIVE_FONT):
         truth = "привет мир"

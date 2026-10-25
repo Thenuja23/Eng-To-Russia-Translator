@@ -22,6 +22,24 @@ export async function translateText(text, srcLang = 'en', tgtLang = 'ru', engine
   return res.json()
 }
 
+let translationEnginesPromise = null
+
+/** Available translation engines, including whether Google is configured. */
+export async function translationEngines() {
+  if (!translationEnginesPromise) {
+    translationEnginesPromise = fetch(`${API}/translation/engines`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await parseError(res))
+        return res.json()
+      })
+      .catch((err) => {
+        translationEnginesPromise = null // allow a retry after a transient failure
+        throw err
+      })
+  }
+  return translationEnginesPromise
+}
+
 export async function processText(text) {
   const res = await fetch(`${API}/text/process`, {
     method: 'POST',
