@@ -56,15 +56,6 @@ const VocabularyPage = () => {
     }
   }
 
-  const checkAiStatus = async () => {
-    try {
-      const status = await aiStatus()
-      if (!status.configured) setAiOffline(true)
-    } catch {
-      /* the analyse button will surface the real error */
-    }
-  }
-
 
 
   return (
