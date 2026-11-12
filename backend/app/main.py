@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import translation, text, feedback, ocr, ai
+from app.api.routes import translation, text, feedback, ocr, ai, vocab
 from app.core.config import settings
 
 app = FastAPI(title=settings.app_name, version=settings.version)
@@ -23,6 +23,7 @@ app.include_router(text.router)
 app.include_router(feedback.router)
 app.include_router(ocr.router)
 app.include_router(ai.router)
+app.include_router(vocab.router)
 
 
 @app.get("/health")

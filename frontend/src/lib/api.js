@@ -1,5 +1,14 @@
 // Single place that knows where the API lives and how to talk to it.
-export const API = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'
+//
+// By default requests are relative, so the Vite dev server proxies them to
+// FastAPI on the server (see vite.config.js). That keeps the browser on one
+// origin, which also makes the app work through a remote preview hostname.
+// For a separate API host, set VITE_API_URL at build time.
+const configuredApi = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
+const onOwnMachine =
+  typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1', '[::1]', '::1'].includes(window.location.hostname)
+export const API = configuredApi || (onOwnMachine ? 'http://127.0.0.1:8000' : '')
 
 async function parseError(res) {
   let detail = `HTTP ${res.status}`
@@ -128,8 +137,17 @@ export function aiExplain({ text, translation = '', srcLang = 'en', tgtLang = 'r
 /**
  * Word-by-word vocabulary analysis (English + Sinhala meanings, part of
  * speech, grammar notes and two example sentences per word).
- * Resolves to { words: [...], provider, ... }.
+ *
+ * Uses the AI ensemble when the server has a provider key, and the built-in
+ * Russian dictionary + grammar engine otherwise, so this always answers.
+ * Resolves to { words: [...], mode: 'ai' | 'offline', stats, notice }.
  */
-export function aiVocab(text) {
-  return aiPost('vocab', { text })
+export async function analyzeVocab(text) {
+  const res = await fetch(`${API}/vocab/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
 }

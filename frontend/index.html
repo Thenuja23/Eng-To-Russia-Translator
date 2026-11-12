@@ -7,7 +7,22 @@
     <link rel="apple-touch-icon" href="/logo.png" />
     <meta name="theme-color" content="#3b82f6" />
     <meta name="description" content="Help learning Russian cursive writing and reading" />
-    <link rel="manifest" href="/manifest.json" />
+    <script>
+      // Hosted preview gateways block the web app manifest request (it is
+      // fetched without credentials, so their session check answers 403 and the
+      // console fills with errors). Register the manifest on real deployments
+      // only; the app itself does not need it to run.
+      (function () {
+        try {
+          if (!/(^|\.)style\.dev$/.test(window.location.hostname)) {
+            var link = document.createElement('link')
+            link.rel = 'manifest'
+            link.href = '/manifest.json'
+            document.head.appendChild(link)
+          }
+        } catch (e) {}
+      })()
+    </script>
     <script>
       // Apply the stored (or OS) theme before first paint to avoid a flash.
       (function () {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import WritingPage from './pages/WritingPage'
+import VocabularyPage from './pages/VocabularyPage'
 import AlphabetChart from './components/AlphabetChart'
 import TrapLetterDrills from './components/TrapLetterDrills'
 import Flashcards from './components/Flashcards'
@@ -47,13 +48,14 @@ function BrandMark() {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('write')
+  const [tab, setTab] = useState('vocab')
   const [ocrText, setOcrText] = useState('привет мир')
   const [savedOcr, setSavedOcr] = useState('привет мир')
   const [ocrBusy, setOcrBusy] = useState(false)
   const [ocrError, setOcrError] = useState('')
 
   const tabs = [
+    { id: 'vocab', label: 'Vocabulary', icon: '🔤', hint: 'Speak, snap or type Russian words' },
     { id: 'write', label: 'Write', icon: '✍️', hint: 'Translate & see cursive' },
     { id: 'learn', label: 'Learn', icon: '📚', hint: 'Alphabet, drills, cards' },
     { id: 'tools', label: 'Tools', icon: '🛠️', hint: 'OCR, tap-a-word, feedback' },
@@ -112,6 +114,8 @@ export default function App() {
       </nav>
 
       <main className="flex-1 pb-12">
+        {tab === 'vocab' && <VocabularyPage />}
+
         {tab === 'write' && <WritingPage />}
 
         {tab === 'learn' && (
