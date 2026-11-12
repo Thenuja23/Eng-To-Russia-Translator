@@ -124,3 +124,12 @@ export function aiExplain({ text, translation = '', srcLang = 'en', tgtLang = 'r
     question,
   })
 }
+
+/**
+ * Word-by-word vocabulary analysis (English + Sinhala meanings, part of
+ * speech, grammar notes and two example sentences per word).
+ * Resolves to { words: [...], provider, ... }.
+ */
+export function aiVocab(text) {
+  return aiPost('vocab', { text })
+}
