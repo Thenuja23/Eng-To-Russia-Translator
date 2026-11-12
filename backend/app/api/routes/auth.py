@@ -91,15 +91,21 @@ def _throttle(key: str) -> None:
 def _check_origin(request: Request) -> None:
     """Reject cross-site form posts; cookies are SameSite=Lax as well.
 
-    A request from the app's own origin is always fine (that is what a browser
-    sends for same-site fetch calls, including through a proxy). Anything else
-    must appear in the configured CORS origins.
+    A request from the app's own origin is always fine. This covers the case
+    where the frontend reaches this API through a reverse/proxy on the same
+    hostname (e.g. Vite dev proxy, or a production same-origin deployment):
+    we read the effective origin from X-Forwarded-Host / X-Forwarded-Proto / Host.
+    Anything else must appear in the configured CORS origins.
     """
     origin = (request.headers.get("origin") or "").rstrip("/")
     if not origin:
         return
-    host = request.headers.get("host", "")
+
     forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    host = (
+        (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+        or request.headers.get("host", "")
+    )
     scheme = forwarded or request.url.scheme
     if host and origin == f"{scheme}://{host}":
         return

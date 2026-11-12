@@ -14,6 +14,8 @@ import ImageInput from './components/ImageInput'
 import AiStudio from './components/AiStudio'
 import UserButton from './components/UserButton'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import './auth/wait-for-auth.js'
+
 import AuthPage from './pages/AuthPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import { Notice } from './components/auth/parts'
