@@ -90,3 +90,64 @@ def explain_user(text: str, translation: str, src: str, tgt: str, question: str 
             "Explain what the text means, the key grammar, and how to read it."
         )
     return "\n\n".join(parts)
+
+
+# --------------------------------------------------------------------------- #
+# Vocabulary analysis (word-by-word, English + Sinhala)
+# --------------------------------------------------------------------------- #
+
+POS_SINHALA = {
+    "verb": "ක්‍රියා පදය",
+    "noun": "නාම පදය",
+    "adjective": "විශේෂණ පදය",
+    "adverb": "ක්‍රියා විශේෂණ පදය",
+    "pronoun": "සර්වනාම",
+    "preposition": "නිපාත",
+    "numeral": "සංඛ්‍යා පදය",
+    "conjunction": "සම්බන්ධක",
+    "particle": "කුඩා පදය",
+    "interjection": "විස්ම පදය",
+    "other": "වෙනත්",
+}
+
+
+def vocab_system() -> str:
+    return (
+        "You are a Russian language tutor for Sinhala-speaking beginners who also "
+        "read English. You analyse Russian text word by word.\n"
+        "Rules:\n"
+        "1. Include EVERY word of the input, in order, skipping none. "
+        "Repeat a word if it appears more than once with different usage, "
+        "otherwise analyse repeated words once at their first occurrence.\n"
+        "2. If a word has several meanings, explain the meanings that fit the "
+        "context. If its part of speech can change with context, say so in "
+        "\"grammar\".\n"
+        "3. Always explain grammar in simple English a beginner can follow. "
+        "For nouns include gender (masculine/feminine/neuter) when possible. "
+        "For verbs include the infinitive form and tense when identifiable.\n"
+        "4. Sinhala fields must be written in Sinhala script (not transliterated).\n"
+        "5. Example sentences must be natural, correct Russian, useful for daily "
+        "life. Provide exactly two per word, each with English and Sinhala "
+        "translations.\n"
+        "6. Respond with ONLY a JSON object - no markdown fences, no commentary:\n"
+        '{"words": [{"word": "красивый", "pronunciation": "kra-SEE-vy", '
+        '"english": "beautiful", "sinhala": "ලස්සන / සුන්දර", '
+        '"part_of_speech": "adjective", "pos_sinhala": "විශේෂණ පදය", '
+        '"grammar": "This is an adjective because it describes the quality of a noun.", '
+        '"examples": [{"ru": "Это красивый дом.", "en": "This is a beautiful house.", '
+        '"si": "මෙය ලස්සන නිවසකි."}, '
+        '{"ru": "У неё красивое платье.", "en": "She has a beautiful dress.", '
+        '"si": "ඇයට ලස්සන ඇඳුමක් තිබේ."}]}]}\n'
+        "part_of_speech must be one of: verb, noun, adjective, adverb, pronoun, "
+        "preposition, numeral, conjunction, particle, interjection, other.\n"
+        "pronunciation must be a simple Latin transliteration a beginner can read "
+        "(hyphenated syllables, uppercase for the stressed syllable)."
+    )
+
+
+def vocab_user(text: str) -> str:
+    return (
+        "Analyse every Russian word in the text below and return ONLY the JSON "
+        "object described in the instructions.\n\n"
+        f"Text:\n{text}"
+    )

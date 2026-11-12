@@ -41,6 +41,10 @@ class AiExplainRequest(BaseModel):
     question: Optional[str] = None
 
 
+class AiVocabRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+
+
 def _guard(request: Request, *texts: str) -> None:
     if not settings.ai_enabled:
         raise HTTPException(

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,6 +34,74 @@ from .providers import Provider, ProviderError, build_providers
 _CYR = re.compile(r"[А-Яа-яЁё]")
 _LAT = re.compile(r"[A-Za-z]")
 _SENTENCE = re.compile(r"[.!?…]+")
+
+# Filled from the prompt dictionary when a provider omits pos_sinhala.
+_POS_SINHALA = prompts.POS_SINHALA
+_REQUIRED_WORD_FIELDS = (
+    "word", "pronunciation", "english", "sinhala",
+    "part_of_speech", "grammar", "examples",
+)
+
+
+def _parse_vocab_json(text: str) -> Optional[dict]:
+    """Extract and normalise the {"words": [...]} answer a provider returned.
+
+    Returns None when the answer does not contain usable JSON; otherwise a dict
+    with every word field guaranteed present (missing Sinhala part-of-speech
+    names are filled in from the canonical table).
+    """
+    raw = (text or "").strip()
+    raw = re.sub(r"^```[A-Za-z]*\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    start, end = raw.find("{"), raw.rfind("}")
+    if start == -1 or end <= start:
+        return None
+    try:
+        data = json.loads(raw[start:end + 1])
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("words"), list):
+        return None
+
+    words: List[dict] = []
+    for item in data["words"]:
+        if not isinstance(item, dict):
+            continue
+        if not str(item.get("word") or "").strip():
+            continue
+        entry = {
+            "word": str(item.get("word") or "").strip(),
+            "pronunciation": str(item.get("pronunciation") or "").strip(),
+            "english": str(item.get("english") or "").strip(),
+            "sinhala": str(item.get("sinhala") or "").strip(),
+            "part_of_speech": str(item.get("part_of_speech") or "other").strip().lower(),
+            "grammar": str(item.get("grammar") or "").strip(),
+            "examples": [],
+        }
+        if not entry["sinhala"] or not entry["english"] or not entry["grammar"]:
+            continue
+        entry["pos_sinhala"] = str(
+            item.get("pos_sinhala") or _POS_SINHALA.get(entry["part_of_speech"], "වෙනත්")
+        ).strip()
+        examples = item.get("examples") if isinstance(item.get("examples"), list) else []
+        for ex in examples or []:
+            if not isinstance(ex, dict):
+                continue
+            ru = str(ex.get("ru") or "").strip()
+            if not ru:
+                continue
+            entry["examples"].append({
+                "ru": ru,
+                "en": str(ex.get("en") or "").strip(),
+                "si": str(ex.get("si") or "").strip(),
+            })
+        if not entry["examples"]:
+            continue
+        words.append(entry)
+
+    if not words:
+        return None
+    return {"words": words}
 
 
 class AiNotConfigured(RuntimeError):
@@ -255,10 +324,49 @@ class Ensemble:
         self.cache.set(cache_key, result)
         return result
 
+    def vocabulary(self, text: str) -> dict:
+        """Word-by-word analysis: meanings (EN/SI), POS, grammar, examples.
+
+        Every configured provider answers the same structured-JSON prompt; the
+        answer that parses to valid JSON and covers the most words wins.
+        """
+        self._require_text(text)
+        cache_key = self._cache_key("vocab", [text])
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return {**cached, "cached": True}
+
+        candidates = self._fanout(
+            prompts.vocab_system(),
+            prompts.vocab_user(text),
+            max_tokens=2800,
+        )
+        valid = [c for c in candidates if c.ok and _parse_vocab_json(c.text)]
+        if not valid:
+            raise AiError(self._failure_summary(candidates))
+
+        # Rank by how much of the required structure the answer has: number of
+        # words covered, then number of complete example pairs.
+        for c in valid:
+            parsed = _parse_vocab_json(c.text)
+            c.score = (
+                len(parsed["words"]) * 10
+                + sum(len(w.get("examples") or []) for w in parsed["words"])
+            )
+
+        best = max(valid, key=lambda c: c.score)
+        words = _parse_vocab_json(best.text)["words"]
+        result = self._result(candidates, best, "vocab", {
+            "words": words,
+            "source": text,
+        })
+        self.cache.set(cache_key, result)
+        return result
+
     # ------------------------------------------------------------------ #
     # internals
     # ------------------------------------------------------------------ #
-    def _fanout(self, system: str, user: str) -> List[Candidate]:
+    def _fanout(self, system: str, user: str, max_tokens: int = 900) -> List[Candidate]:
         usable = self.configured_providers
         if not usable:
             raise AiNotConfigured(self._setup_message())
@@ -266,7 +374,7 @@ class Ensemble:
         results: List[Candidate] = []
         with ThreadPoolExecutor(max_workers=len(usable)) as pool:
             futures = [
-                pool.submit(self._run_one, provider, system, user)
+                pool.submit(self._run_one, provider, system, user, max_tokens)
                 for provider in usable
             ]
             for future in as_completed(futures):
@@ -274,10 +382,12 @@ class Ensemble:
         return results
 
     @staticmethod
-    def _run_one(provider: Provider, system: str, user: str) -> Candidate:
+    def _run_one(
+        provider: Provider, system: str, user: str, max_tokens: int = 900
+    ) -> Candidate:
         started = time.perf_counter()
         try:
-            raw = provider.complete(system, user)
+            raw = provider.complete(system, user, max_tokens=max_tokens)
             return Candidate(
                 provider=provider.name,
                 model=provider.model,
