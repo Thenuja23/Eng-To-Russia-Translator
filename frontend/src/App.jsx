@@ -12,6 +12,11 @@ import FeedbackForm from './components/FeedbackForm'
 import ThemeToggle from './components/ThemeToggle'
 import ImageInput from './components/ImageInput'
 import AiStudio from './components/AiStudio'
+import UserButton from './components/UserButton'
+import { AuthProvider, useAuth } from './auth/AuthProvider'
+import AuthPage from './pages/AuthPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import { Notice } from './components/auth/parts'
 
 /**
  * Company logo mark. Falls back to the Я monogram if the logo file
@@ -47,7 +52,8 @@ function BrandMark() {
   )
 }
 
-export default function App() {
+function AppShell() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('vocab')
   const [ocrText, setOcrText] = useState('привет мир')
   const [savedOcr, setSavedOcr] = useState('привет мир')
@@ -109,11 +115,14 @@ export default function App() {
             })}
           </div>
 
+          <UserButton className="shrink-0" />
           <ThemeToggle className="shrink-0" />
         </div>
       </nav>
 
       <main className="flex-1 pb-12">
+        <AccountNotices />
+
         {tab === 'vocab' && <VocabularyPage />}
 
         {tab === 'write' && <WritingPage />}
@@ -201,6 +210,7 @@ export default function App() {
       </main>
 
       <footer className="no-print py-6 text-center text-xs text-gray-500 dark:text-gray-500 border-t border-gray-200/70 dark:border-slate-800 space-y-2">
+        <p className="sr-only">Signed in as {user?.email}</p>
         <div className="flex items-center justify-center gap-2">
           <img
             src="/logo.png"
@@ -218,5 +228,99 @@ export default function App() {
         </p>
       </footer>
     </div>
+  )
+}
+
+/** Session-backed banner: verification prompt plus one-time notices. */
+function AccountNotices() {
+  const { user, notice, setNotice, resendVerification } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState('')
+
+  if (!user) return null
+
+  async function handleResend() {
+    setBusy(true)
+    setSent('')
+    try {
+      const result = await resendVerification()
+      setSent(
+        result?.already_verified
+          ? 'Your e-mail is already confirmed.'
+          : result?.email_sent
+            ? 'Confirmation e-mail sent — check your inbox.'
+            : 'Link created, but e-mail delivery is not configured on this server.',
+      )
+    } catch (err) {
+      setSent(err?.message || 'Could not send the confirmation e-mail.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 space-y-2">
+      {notice && (
+        <Notice type={notice.type} onDismiss={() => setNotice(null)}>
+          {notice.message}
+        </Notice>
+      )}
+      {!user.email_verified && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <span>
+            Confirm your e-mail address to secure your account. Signed in as{' '}
+            <span className="font-medium">{user.email}</span>.
+            {sent && <span className="block text-xs opacity-80">{sent}</span>}
+          </span>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={busy}
+            className="btn-secondary shrink-0 !py-2 text-xs"
+          >
+            {busy ? 'Sending…' : 'Resend link'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Splash() {
+  return (
+    <div className="min-h-screen grid place-items-center px-6">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-2xl font-bold text-white shadow-lg shadow-blue-600/30">
+          я
+        </span>
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"
+          aria-hidden="true"
+        />
+        <p className="text-sm text-gray-600 dark:text-gray-400" role="status">
+          Checking your session…
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Server-checked gate: no app UI is rendered until /auth/me answers. */
+function AuthGate() {
+  const { user, loading } = useAuth()
+  const path =
+    typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') : ''
+
+  if (path === '/reset-password') return <ResetPasswordPage />
+  if (loading) return <Splash />
+  if (!user) return <AuthPage />
+  return <AppShell />
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   )
 }

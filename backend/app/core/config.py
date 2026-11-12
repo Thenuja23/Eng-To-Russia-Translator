@@ -89,10 +89,63 @@ class Settings(BaseSettings):
     perplexity_model: str = "sonar"
     perplexity_base_url: str = "https://api.perplexity.ai"
 
+    # ---------------------------------------------------------------- auth ----
+    # Real accounts, sessions and Google OAuth are handled by this backend.
+    # Accounts live in a small SQLite database (path configurable) and passwords
+    # are hashed with scrypt. Session tokens are opaque random values stored as
+    # hashes; only an HttpOnly cookie ever carries them.
+    auth_db_path: str = str(Path(__file__).resolve().parents[2] / "auth.db")
+    auth_session_days: int = 30
+    auth_cookie_name: str = "etr_session"
+    # Set true when the site is served over HTTPS in production.
+    auth_cookie_secure: bool = False
+    # Public origin of the frontend; used for Google redirects and email links.
+    auth_app_base_url: str = "http://localhost:3000"
+    # Require a session for the translation/OCR/vocab/AI endpoints. The UI always
+    # requires login; this switch also locks the raw API down for deployments
+    # that must not serve anonymous traffic.
+    auth_protect_features: bool = False
+
+    # Google OAuth 2.0 (Authorization Code flow, handled server-side).
+    # Create these in Google Cloud Console -> APIs & Services -> Credentials.
+    auth_google_client_id: Optional[str] = None
+    auth_google_client_secret: Optional[str] = None
+    # Defaults to <auth_app_base_url>/auth/google/callback when omitted.
+    auth_google_redirect_uri: Optional[str] = None
+
+    # Transactional email for verification and password reset links. Without an
+    # SMTP host the backend still creates real one-time tokens but cannot send
+    # them; the API says so instead of pretending an email was delivered.
+    auth_smtp_host: Optional[str] = None
+    auth_smtp_port: int = 587
+    auth_smtp_user: Optional[str] = None
+    auth_smtp_password: Optional[str] = None
+    auth_smtp_from: Optional[str] = None
+    auth_smtp_starttls: bool = True
+
+    @property
+    def google_oauth_configured(self) -> bool:
+        return bool(
+            (self.auth_google_client_id or "").strip()
+            and (self.auth_google_client_secret or "").strip()
+        )
+
+    @property
+    def google_redirect_uri(self) -> str:
+        return (
+            (self.auth_google_redirect_uri or "").strip()
+            or f"{self.auth_app_base_url.rstrip('/')}/auth/google/callback"
+        )
+
+    @property
+    def email_delivery_configured(self) -> bool:
+        return bool((self.auth_smtp_host or "").strip())
+
     # Comma-separated list of allowed browser origins for CORS.
     cors_origins: str = (
         "http://127.0.0.1:5173,http://localhost:5173,"
-        "http://127.0.0.1:4173,http://localhost:4173"
+        "http://127.0.0.1:4173,http://localhost:4173,"
+        "http://127.0.0.1:3000,http://localhost:3000"
     )
     # Also allow any localhost/LAN port during development.
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$"

@@ -5,7 +5,9 @@ import react from '@vitejs/plugin-react'
 // keeps the browser on one origin (no CORS, and the page works when it is
 // opened through a preview hostname instead of 127.0.0.1).
 const BACKEND = process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'
-const apiPaths = ['/translation', '/text', '/feedback', '/ocr', '/ai', '/vocab', '/health']
+// /auth is proxied too: the session is an HttpOnly cookie, so the browser must
+// talk to the API on its own origin for the cookie to be stored and sent.
+const apiPaths = ['/translation', '/text', '/feedback', '/ocr', '/ai', '/vocab', '/health', '/auth']
 
 const proxy = Object.fromEntries(
   apiPaths.map((path) => [path, { target: BACKEND, changeOrigin: true }]),
