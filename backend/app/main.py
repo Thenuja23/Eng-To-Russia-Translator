@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,9 +10,19 @@ from app.core.config import settings
 from app.services.auth import db as auth_store
 from app.services.auth import sessions
 
+logger = logging.getLogger("app.startup")
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    settings.validate_auth_configuration()
+    if not settings.google_oauth_configured:
+        logger.warning(
+            "Google OAuth is disabled: set AUTH_GOOGLE_CLIENT_ID and "
+            "AUTH_GOOGLE_CLIENT_SECRET in the backend environment to enable it."
+        )
+    elif not settings.google_redirect_uri.startswith("https://"):
+        logger.warning("Google OAuth is using a non-HTTPS callback outside production.")
     # Accounts, sessions and one-time tokens live in SQLite.
     auth_store.init_db()
     yield

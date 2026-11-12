@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     # Set true when the site is served over HTTPS in production.
     auth_cookie_secure: bool = False
     # Public origin of the frontend; used for Google redirects and email links.
-    auth_app_base_url: str = "http://localhost:3000"
+    auth_app_base_url: str = "http://localhost:5173"
     # Require a session for the translation/OCR/vocab/AI endpoints. The UI always
     # requires login; this switch also locks the raw API down for deployments
     # that must not serve anonymous traffic.
@@ -140,6 +140,26 @@ class Settings(BaseSettings):
     @property
     def email_delivery_configured(self) -> bool:
         return bool((self.auth_smtp_host or "").strip())
+
+    def validate_auth_configuration(self) -> None:
+        """Fail startup for contradictory OAuth settings; leave OAuth optional."""
+        client_id = (self.auth_google_client_id or "").strip()
+        client_secret = (self.auth_google_client_secret or "").strip()
+        if bool(client_id) != bool(client_secret):
+            raise ValueError(
+                "Google OAuth configuration is incomplete: set both "
+                "AUTH_GOOGLE_CLIENT_ID and AUTH_GOOGLE_CLIENT_SECRET, or leave both empty."
+            )
+        if client_id:
+            from urllib.parse import urlparse
+
+            redirect = urlparse(self.google_redirect_uri)
+            local_http = redirect.hostname in ("localhost", "127.0.0.1", "::1")
+            if redirect.scheme != "https" and not (redirect.scheme == "http" and local_http):
+                raise ValueError(
+                    "Google OAuth callback must use HTTPS outside localhost. "
+                    "Set AUTH_GOOGLE_REDIRECT_URI to the public HTTPS callback URL."
+                )
 
     # Comma-separated list of allowed browser origins for CORS.
     cors_origins: str = (

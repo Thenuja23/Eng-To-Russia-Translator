@@ -40,6 +40,7 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
   const [config, setConfig] = useState({
     google_enabled: false,
     email_delivery_configured: false,
@@ -147,6 +148,15 @@ export default function AuthPage() {
         <>
           <GoogleButton
             enabled={Boolean(config.google_enabled)}
+            busy={googleBusy}
+            disabled={busy}
+            onStart={() => {
+              if (googleBusy || busy) return
+              setGoogleBusy(true)
+              setError('')
+              setNotice(null)
+              window.location.assign('/auth/google/start')
+            }}
             onUnavailable={() =>
               setError(
                 'Google sign-in is not configured on this server yet. Add GOOGLE OAuth credentials (AUTH_GOOGLE_CLIENT_ID / AUTH_GOOGLE_CLIENT_SECRET) to the backend environment.',
@@ -240,7 +250,7 @@ export default function AuthPage() {
         {error && <Notice type="error">{error}</Notice>}
         {info && <Notice type="success">{info}</Notice>}
 
-        <button type="submit" className="btn-primary w-full" disabled={busy} aria-busy={busy}>
+        <button type="submit" className="btn-primary w-full" disabled={busy || googleBusy} aria-busy={busy}>
           {busy ? (
             <>
               <span

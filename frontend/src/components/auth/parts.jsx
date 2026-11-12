@@ -222,17 +222,20 @@ function GoogleMark() {
  * Google sign-in button. When the backend has no OAuth credentials the button
  * says so instead of pretending to start a login.
  */
-export function GoogleButton({ enabled, disabled, onUnavailable }) {
+export function GoogleButton({ enabled, disabled, onUnavailable, busy = false, onStart }) {
   if (enabled) {
     return (
-      <a
-        href="/auth/google/start"
-        className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:shadow disabled:opacity-50 dark:border-slate-600 dark:bg-slate-100 dark:text-gray-800 dark:hover:bg-white"
-        aria-label="Continue with Google"
+      <button
+        type="button"
+        disabled={disabled || busy}
+        onClick={onStart}
+        className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:shadow disabled:cursor-wait disabled:opacity-60 dark:border-slate-600 dark:bg-slate-100 dark:text-gray-800 dark:hover:bg-white"
+        aria-label={busy ? 'Connecting to Google' : 'Continue with Google'}
+        aria-busy={busy}
       >
         <GoogleMark />
-        Continue with Google
-      </a>
+        {busy ? 'Connecting to Google…' : 'Continue with Google'}
+      </button>
     )
   }
   return (

@@ -395,7 +395,21 @@ def google_callback(
 
     try:
         tokens = google.exchange_code(code, verifier)
-        profile = google.fetch_profile(tokens["access_token"])
+        profile = google.verify_id_token(tokens["id_token"])
+        display_profile = google.fetch_profile(tokens["access_token"])
+        if (
+            display_profile.get("sub") != profile.get("sub")
+            or _clean_email(display_profile.get("email", ""))
+            != _clean_email(profile.get("email", ""))
+        ):
+            raise google.GoogleAuthError("Google returned inconsistent account details.")
+        profile.update(
+            {
+                key: display_profile[key]
+                for key in ("name", "picture")
+                if display_profile.get(key)
+            }
+        )
     except google.GoogleAuthError as exc:
         logger.warning("Google sign-in failed: %s", exc)
         response = RedirectResponse(_app_url("/?auth_error=google_failed"), status_code=303)

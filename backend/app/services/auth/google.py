@@ -21,6 +21,7 @@ from app.services.auth import db as store
 AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 SCOPES = "openid email profile"
 
 
@@ -108,22 +109,53 @@ def exchange_code(code: str, code_verifier: str) -> dict:
             "Check the OAuth redirect URI and client credentials."
         )
     data = response.json()
-    if not data.get("access_token"):
-        raise GoogleAuthError("Google did not return an access token.")
+    if not data.get("access_token") or not data.get("id_token"):
+        raise GoogleAuthError("Google did not return the required sign-in tokens.")
     return data
 
 
+def verify_id_token(id_token: str) -> dict:
+    """Ask Google's TLS-protected tokeninfo endpoint to validate the ID token.
+
+    Audience, issuer and expiry are checked explicitly before claims are used.
+    The ID token is never sent to or exposed by the frontend.
+    """
+    try:
+        with httpx.Client(timeout=20) as client:
+            response = client.get(
+                TOKENINFO_URL, params={"id_token": id_token}
+            )
+    except httpx.HTTPError as exc:
+        raise GoogleAuthError("Could not validate the Google identity token.") from exc
+    if response.status_code >= 400:
+        raise GoogleAuthError("Google rejected the identity token.")
+    profile = response.json()
+    try:
+        expires_at = int(profile.get("exp", "0"))
+    except (TypeError, ValueError):
+        expires_at = 0
+    if profile.get("aud") != settings.auth_google_client_id:
+        raise GoogleAuthError("Google identity token was issued for a different application.")
+    if profile.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise GoogleAuthError("Google identity token has an invalid issuer.")
+    if expires_at <= int(store.utcnow().timestamp()):
+        raise GoogleAuthError("Google identity token has expired.")
+    if not profile.get("sub") or not profile.get("email"):
+        raise GoogleAuthError("Google identity token is missing an account id or e-mail.")
+    if str(profile.get("email_verified", "")).lower() not in ("true", "1"):
+        raise GoogleAuthError("Google has not verified this e-mail address.")
+    return profile
+
+
 def fetch_profile(access_token: str) -> dict:
+    """Fetch display-only profile fields after independently validating ID token."""
     try:
         with httpx.Client(timeout=20) as client:
             response = client.get(
                 USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"}
             )
     except httpx.HTTPError as exc:
-        raise GoogleAuthError(f"Could not read the Google profile: {exc}") from exc
+        raise GoogleAuthError("Could not read the Google profile.") from exc
     if response.status_code >= 400:
         raise GoogleAuthError("Google did not return a profile for this account.")
-    profile = response.json()
-    if not profile.get("sub") or not profile.get("email"):
-        raise GoogleAuthError("The Google profile is missing an account id or e-mail.")
-    return profile
+    return response.json()

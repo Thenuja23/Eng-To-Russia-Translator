@@ -86,6 +86,43 @@ debounced text is not billed twice.
 Without a key, `/translation/engines` reports Google as unavailable and the UI
 hides the cloud options — the app remains fully usable offline.
 
+## Google account sign-in
+
+Google sign-in and sign-up use the backend's authorization-code flow with PKCE,
+one-time state validation and a server-issued opaque session cookie. The browser
+never receives the Google client secret, access token, ID token, or session
+token. Google identity tokens are validated server-side against Google's
+tokeninfo endpoint, including audience, issuer, expiry and verified e-mail.
+New Google users are created on first sign-in; an existing account with the
+same Google-verified e-mail is linked to that Google identity. E-mail/password
+accounts continue to work independently.
+
+Copy `backend/.env.example` to `backend/.env` and configure:
+
+```dotenv
+AUTH_APP_BASE_URL=https://your-app.example
+AUTH_GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+AUTH_GOOGLE_CLIENT_SECRET=your-web-client-secret
+AUTH_GOOGLE_REDIRECT_URI=https://your-app.example/auth/google/callback
+AUTH_COOKIE_SECURE=true
+```
+
+In Google Cloud Console, create an OAuth client ID of type **Web application**.
+Add the app origin under **Authorised JavaScript origins** and the exact value
+of `AUTH_GOOGLE_REDIRECT_URI` under **Authorised redirect URIs**. For local
+Vite development, register `http://localhost:5173` and
+`http://localhost:5173/auth/google/callback`. The frontend dev proxy and the
+production reverse proxy must forward `/auth/*` to FastAPI, including the
+callback path. Do not put the client secret in frontend environment variables.
+Set `CORS_ORIGINS` to the explicit frontend origins when the API is accessed
+cross-origin; keep credentialed requests enabled and use HTTPS in production.
+
+The backend validates the credential pair at startup. If both are omitted,
+password authentication remains available and startup logs explain that Google
+sign-in is disabled. If only one is configured, startup fails with a clear
+configuration error. Google OAuth is enabled as soon as both values and the
+registered callback URL are configured; no frontend rebuild is required.
+
 ## Optional AI ensemble (ChatGPT + Claude + Perplexity)
 
 The AI layer is **off by default until a key is added**. Keys live only on the
