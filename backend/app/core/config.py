@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-3-5-haiku-latest"
     anthropic_base_url: str = "https://api.anthropic.com/v1"
 
+    # ------------------------------------------------------ Vocabulary engine --
+    # The word-by-word vocabulary assistant works offline from a curated
+    # dictionary and grammar rules. Unknown words can additionally be glossed
+    # through a free online lookup (no key). Turn that off for a fully offline
+    # server, or to avoid sending learner text to a third party.
+    vocab_online_lookup: bool = True
+    vocab_lookup_timeout_seconds: float = 5.0
+    vocab_max_online_words: int = 15
+
     perplexity_api_key: Optional[str] = None
     perplexity_model: str = "sonar"
     perplexity_base_url: str = "https://api.perplexity.ai"

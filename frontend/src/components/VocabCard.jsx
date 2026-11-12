@@ -51,6 +51,16 @@ const VocabCard = ({ entry, index }) => {
             </span>
             {entry.word}
           </h4>
+          {entry.occurrences > 1 && (
+            <span className="pill border border-gray-200 bg-gray-50 text-gray-600 dark:bg-slate-800 dark:text-gray-300 dark:border-slate-700">
+              appears {entry.occurrences}×
+            </span>
+          )}
+          {entry.lemma && entry.lemma.toLowerCase() !== entry.word.toLowerCase() && (
+            <span className="pill border border-gray-200 bg-gray-50 text-gray-600 dark:bg-slate-800 dark:text-gray-300 dark:border-slate-700">
+              dictionary form: {entry.lemma}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => speakText(entry.word, 'ru')}
@@ -95,6 +105,14 @@ const VocabCard = ({ entry, index }) => {
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
               {entry.grammar}
             </p>
+            {entry.grammar_sinhala && (
+              <p
+                lang="si"
+                className="mt-1.5 text-sm text-gray-600 dark:text-gray-400 leading-relaxed"
+              >
+                {entry.grammar_sinhala}
+              </p>
+            )}
           </div>
         )}
 
