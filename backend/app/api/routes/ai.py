@@ -119,3 +119,10 @@ def ai_explain(req: AiExplainRequest, request: Request):
             question=req.question or "",
         )
     )
+
+
+@router.post("/vocab")
+def ai_vocab(req: AiVocabRequest, request: Request):
+    """Word-by-word vocabulary analysis (EN + Sinhala, POS, grammar, examples)."""
+    _guard(request, req.text)
+    return _run(lambda: ensemble.vocabulary(req.text))
