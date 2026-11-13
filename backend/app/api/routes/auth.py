@@ -2,8 +2,9 @@
 
 Security notes
 --------------
-* Passwords are hashed with scrypt (salted, per user) and never stored or
-  returned in plain text.
+* Passwords are hashed with scrypt (salted, per user), or PBKDF2-HMAC-SHA256
+  with a high iteration count on Python builds whose OpenSSL lacks scrypt, and
+  are never stored or returned in plain text.
 * Sessions are opaque random tokens. The browser gets one HttpOnly, SameSite=Lax
   cookie; the database stores only a SHA-256 hash of the token.
 * Google sign-in is the server-side authorization-code flow with PKCE. The
@@ -17,6 +18,7 @@ import re
 import sqlite3
 import time
 from typing import Dict, List, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -99,6 +101,27 @@ def _clear_throttle(key: str) -> None:
     _ATTEMPTS.pop(key, None)
 
 
+def _forwarded(value: str) -> str:
+    """Nearest proxy's value for an X-Forwarded-* header.
+
+    Proxies append, so the last entry is the one added by the proxy closest to
+    this server (e.g. the Vite dev proxy). Taking it prevents a client from
+    spoofing an earlier entry to impersonate the app's own origin.
+    """
+    parts = [part.strip() for part in (value or "").split(",") if part.strip()]
+    return parts[-1] if parts else ""
+
+
+def _request_origin(request: Request) -> str:
+    """Effective browser origin, accounting for a same-host proxy."""
+    forwarded = _forwarded(request.headers.get("x-forwarded-proto") or "")
+    host = _forwarded(request.headers.get("x-forwarded-host") or "") or request.headers.get(
+        "host", ""
+    )
+    scheme = forwarded or request.url.scheme
+    return f"{scheme}://{host}" if host else ""
+
+
 def _check_origin(request: Request) -> None:
     """Reject cross-site form posts; cookies are SameSite=Lax as well.
 
@@ -112,13 +135,7 @@ def _check_origin(request: Request) -> None:
     if not origin:
         return
 
-    forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
-    host = (
-        (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
-        or request.headers.get("host", "")
-    )
-    scheme = forwarded or request.url.scheme
-    if host and origin == f"{scheme}://{host}":
+    if origin == _request_origin(request):
         return
     allowed = settings.cors_origin_list
     if origin in allowed:
@@ -138,7 +155,7 @@ def _check_origin(request: Request) -> None:
 
 
 def _is_https(request: Request) -> bool:
-    forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    forwarded = _forwarded(request.headers.get("x-forwarded-proto") or "")
     return forwarded == "https" or request.url.scheme == "https"
 
 
@@ -382,6 +399,17 @@ def google_start(request: Request, redirect_to: str = "/"):
     if not google.configured():
         return RedirectResponse(_app_url("/?auth_error=google_not_configured"), status_code=303)
     safe_target = redirect_to if redirect_to.startswith("/") else "/"
+    # The state cookie is scoped to the host that starts the flow, and Google
+    # sends the user back to the registered redirect URI. When the app is
+    # opened on another hostname (127.0.0.1 versus localhost, or a preview
+    # host), bounce to the canonical origin first so start and callback share
+    # one host and the state cookie survives.
+    canonical = settings.auth_app_base_url.rstrip("/")
+    if canonical and _request_origin(request).rstrip("/") != canonical:
+        return RedirectResponse(
+            f"{canonical}/auth/google/start?redirect_to={quote(safe_target, safe='')}",
+            status_code=303,
+        )
     state, challenge = google.start_flow(safe_target)
     response = RedirectResponse(google.authorize_url(state, challenge), status_code=302)
     response.set_cookie(

@@ -92,7 +92,8 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------- auth ----
     # Real accounts, sessions and Google OAuth are handled by this backend.
     # Accounts live in a small SQLite database (path configurable) and passwords
-    # are hashed with scrypt. Session tokens are opaque random values stored as
+    # are hashed with scrypt, or PBKDF2-HMAC-SHA256 on Python builds without
+    # scrypt support. Session tokens are opaque random values stored as
     # hashes; only an HttpOnly cookie ever carries them.
     auth_db_path: str = str(Path(__file__).resolve().parents[2] / "auth.db")
     auth_session_days: int = 30

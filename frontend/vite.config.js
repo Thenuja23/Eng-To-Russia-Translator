@@ -9,8 +9,12 @@ const BACKEND = process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'
 // talk to the API on its own origin for the cookie to be stored and sent.
 const apiPaths = ['/translation', '/text', '/feedback', '/ocr', '/ai', '/vocab', '/health', '/auth']
 
+// xfwd keeps the browser's Host/proto in X-Forwarded-* headers even though
+// changeOrigin rewrites Host for the backend. The auth routes use those
+// headers to recognise the app's own origin when checking Origin headers and
+// deciding whether cookies need Secure.
 const proxy = Object.fromEntries(
-  apiPaths.map((path) => [path, { target: BACKEND, changeOrigin: true }]),
+  apiPaths.map((path) => [path, { target: BACKEND, changeOrigin: true, xfwd: true }]),
 )
 
 // Vite rejects requests whose Host header it does not recognise. Hosted

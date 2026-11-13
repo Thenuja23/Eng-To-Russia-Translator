@@ -145,7 +145,7 @@ export default function AuthPage() {
       footer={
         <>
           By continuing you agree to keep your account secure. Your password is stored only as
-          a salted scrypt hash.
+          a salted, one-way hash.
         </>
       }
     >
