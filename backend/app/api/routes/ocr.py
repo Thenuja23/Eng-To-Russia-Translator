@@ -1,50 +1,31 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-
-from app.core.config import settings
+import os
 import httpx
-# OCRReader import removed; using OCR.space API instead
+from fastapi import UploadFile, File, HTTPException
 
-router = APIRouter()
-
-
-
-
-class OCRResponse(BaseModel):
-    text: str
-    engine: str = "unknown"
-    confidence: Optional[float] = None
-
-
-@router.post("/ocr", response_model=OCRResponse)
+@app.post("/ocr")
 async def ocr(file: UploadFile = File(...)):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(400, "file must be an image")
-    try:
-        # Read one byte beyond the configured cap so large uploads are rejected
-        # without buffering an unbounded request into memory.
-        data = await file.read(settings.max_ocr_upload_bytes + 1)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"failed to read upload: {e}")
-    if len(data) > settings.max_ocr_upload_bytes:
-        raise HTTPException(413, "image is too large")
-    if not data:
-        raise HTTPException(400, "empty image")
+    api_key = os.getenv("OCR_SPACE_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "OCR is not configured")
+
+    content = await file.read()
+    if len(content) > 1_000_000:
+        raise HTTPException(413, "Image must be under 1 MB")
 
     try:
-        result = _READER.read(data)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"OCR unavailable: {e}")
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                "https://api.ocr.space/parse/image",
+                data={"apikey": api_key, "language": "eng", "OCREngine": "2"},
+                files={"file": (file.filename, content, file.content_type)},
+            )
+        r.raise_for_status()
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"OCR service error: {e}")
 
-    text = (result.get("text") or "").strip()
-    engine = result.get("engine") or "none"
-    confidence = result.get("confidence")
+    result = r.json()
+    if result.get("IsErroredOnProcessing"):
+        raise HTTPException(502, str(result.get("ErrorMessage")))
 
-    if not text:
-        # The engines ran but found no readable text — return 200 with empty
-        # text so the UI can prompt the user to try a clearer photo, without
-        # treating a blank page as a server error.
-        return OCRResponse(text="", engine=engine)
-
-    return OCRResponse(text=text, engine=engine, confidence=confidence)
+    text = " ".join(p["ParsedText"] for p in result["ParsedResults"]).strip()
+    return {"text": text}
