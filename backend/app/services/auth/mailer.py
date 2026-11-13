@@ -112,9 +112,8 @@ def send(to_email: str, subject: str, body: str) -> bool:
     """Send an e-mail. Returns False when SMTP is not configured/failed."""
     if not settings.email_delivery_configured:
         logger.warning(
-            "SMTP is not configured; %s for %s was created but not delivered",
+            "SMTP is not configured; %s was created but not delivered",
             subject,
-            to_email,
         )
         return False
 
@@ -132,5 +131,5 @@ def send(to_email: str, subject: str, body: str) -> bool:
             server.send_message(message)
         return True
     except Exception as exc:  # noqa: BLE001 - delivery failure must not break sign-up
-        logger.error("Failed to send %s to %s: %s", subject, to_email, exc)
+        logger.error("Failed to send %s (SMTP error: %s)", subject, type(exc).__name__)
         return False
