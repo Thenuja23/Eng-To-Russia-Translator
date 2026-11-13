@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     # In production the site is HTTPS, so cookies must be Secure.
     auth_cookie_secure: bool = True
     # Public origin of the frontend; used for Google redirects and email links.
-    auth_app_base_url: str = "http://localhost:5173"
+    auth_app_base_url: str = "https://eng-to-russia-translator.vercel.app"
     # Require a session for the translation/OCR/vocab/AI endpoints. The UI always
     # requires login; this switch also locks the raw API down for deployments
     # that must not serve anonymous traffic.
