@@ -240,6 +240,12 @@ def main() -> int:
             current = client.get("/auth/me").json()["user"]
             check("account marked verified", current["email_verified"] is True)
             check("verification timestamp recorded", bool(current["email_verified_at"]))
+            already_verified_resend = client.post("/auth/resend-verification")
+            check(
+                "verified accounts do not receive another verification link",
+                already_verified_resend.status_code == 200
+                and already_verified_resend.json()["already_verified"] is True,
+            )
 
         from app.services.auth import mailer
 
@@ -259,6 +265,10 @@ def main() -> int:
             "/auth/verify-email", json={"token": "known-expired-token"}
         )
         check("expired verification token is rejected", expired_result.status_code == 400)
+        invalid_result = client.post(
+            "/auth/verify-email", json={"token": "not-a-real-verification-token"}
+        )
+        check("unknown verification token is rejected", invalid_result.status_code == 400)
 
         # ---------------------------------------------------------------- logout
         check("logout returns 204", client.post("/auth/logout").status_code == 204)
