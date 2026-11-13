@@ -234,9 +234,15 @@ function AppShell() {
 
 /** Session-backed banner: verification prompt plus one-time notices. */
 function AccountNotices() {
-  const { user, notice, setNotice, resendVerification } = useAuth()
+  const { user, notice, setNotice, resendVerification, refresh, changeEmail } = useAuth()
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [sent, setSent] = useState('')
+  const [changeOpen, setChangeOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [changeBusy, setChangeBusy] = useState(false)
+  const [changeMessage, setChangeMessage] = useState('')
 
   if (!user) return null
 
@@ -259,6 +265,40 @@ function AccountNotices() {
     }
   }
 
+  async function handleRefresh() {
+    setRefreshing(true)
+    setSent('')
+    try {
+      const current = await refresh()
+      setSent(
+        current?.email_verified
+          ? 'Your e-mail is verified.'
+          : 'It is still waiting for confirmation. Check your inbox and spam folder.',
+      )
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  async function handleChangeEmail(event) {
+    event.preventDefault()
+    setChangeBusy(true)
+    setChangeMessage('')
+    try {
+      const result = await changeEmail(newEmail.trim(), currentPassword)
+      setCurrentPassword('')
+      setChangeMessage(
+        result?.email_sent
+          ? 'Confirmation sent to the new address. Your current address remains active until you confirm the link.'
+          : 'The confirmation link was created, but this server cannot send e-mail yet. Your current address has not changed.',
+      )
+    } catch (err) {
+      setChangeMessage(err?.message || 'Could not request an e-mail change.')
+    } finally {
+      setChangeBusy(false)
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 space-y-2">
       {notice && (
@@ -267,20 +307,92 @@ function AccountNotices() {
         </Notice>
       )}
       {!user.email_verified && (
-        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          <span>
-            Confirm your e-mail address to secure your account. Signed in as{' '}
-            <span className="font-medium">{user.email}</span>.
-            {sent && <span className="block text-xs opacity-80">{sent}</span>}
-          </span>
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={busy}
-            className="btn-secondary shrink-0 !py-2 text-xs"
-          >
-            {busy ? 'Sending…' : 'Resend link'}
-          </button>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold">E-mail address not confirmed</p>
+              <p className="mt-0.5 break-all text-amber-900/90 dark:text-amber-100/90">
+                {user.email}
+              </p>
+              {sent && <p className="mt-1 text-xs" role="status">{sent}</p>}
+            </div>
+            <div className="flex flex-wrap gap-2 sm:shrink-0">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={busy}
+                className="btn-secondary !px-3 !py-2 text-xs"
+              >
+                {busy ? 'Sending…' : 'Resend link'}
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="btn-secondary !px-3 !py-2 text-xs"
+              >
+                {refreshing ? 'Checking…' : 'Refresh status'}
+              </button>
+              {user.has_password && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChangeOpen((open) => !open)
+                    setChangeMessage('')
+                  }}
+                  className="btn-ghost !px-3 !py-2 text-xs"
+                >
+                  Change e-mail
+                </button>
+              )}
+            </div>
+          </div>
+
+          {changeOpen && user.has_password && (
+            <form
+              onSubmit={handleChangeEmail}
+              className="mt-3 grid gap-3 border-t border-amber-200/80 pt-3 dark:border-amber-500/30 sm:grid-cols-2"
+            >
+              <label className="grid gap-1 text-xs font-medium">
+                New e-mail address
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  required
+                  value={newEmail}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                  className="input-field !bg-white text-sm dark:!bg-slate-900"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-medium">
+                Current password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  className="input-field !bg-white text-sm dark:!bg-slate-900"
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                <button type="submit" disabled={changeBusy} className="btn-primary btn-sm">
+                  {changeBusy ? 'Sending…' : 'Send confirmation'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChangeOpen(false)}
+                  className="btn-ghost btn-sm"
+                >
+                  Cancel
+                </button>
+                {changeMessage && (
+                  <span className="text-xs" role="status">{changeMessage}</span>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       )}
     </div>
