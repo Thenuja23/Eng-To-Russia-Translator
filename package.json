@@ -1,0 +1,12 @@
+{
+  "name": "eng-to-russia-translator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "install": "npm install --prefix frontend",
+    "build": "npm run build --prefix frontend"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+
