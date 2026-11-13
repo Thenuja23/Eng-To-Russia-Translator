@@ -76,6 +76,11 @@ class ProfileIn(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=120)
 
 
+class ChangeEmailIn(BaseModel):
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., max_length=200)
+
+
 # ------------------------------------------------------------------- helpers
 def _clean_email(value: str) -> str:
     return (value or "").strip().lower()
@@ -362,7 +367,6 @@ def forgot_password(payload: EmailIn, request: Request):
     # Same answer whether or not the account exists (no account enumeration).
     return {
         "status": "ok",
-        "email_sent": sent,
         "email_delivery_configured": settings.email_delivery_configured,
     }
 
@@ -388,7 +392,11 @@ def verify_email(payload: TokenIn, request: Request):
     user_id = mailer.consume_token(payload.token, mailer.PURPOSE_VERIFY)
     if not user_id:
         raise HTTPException(400, "This confirmation link is invalid or has expired.")
-    store.update_user(user_id, email_verified=True)
+    store.update_user(
+        user_id,
+        email_verified=True,
+        email_verified_at=store.iso(store.utcnow()),
+    )
     return {"status": "ok", "email_verified": True}
 
 
@@ -398,8 +406,85 @@ def verify_email_link(request: Request, token: str = ""):
     user_id = mailer.consume_token(token, mailer.PURPOSE_VERIFY)
     if not user_id:
         return RedirectResponse(_app_url("/?verify=invalid"), status_code=303)
-    store.update_user(user_id, email_verified=True)
+    store.update_user(
+        user_id,
+        email_verified=True,
+        email_verified_at=store.iso(store.utcnow()),
+    )
     return RedirectResponse(_app_url("/?verify=ok"), status_code=303)
+
+
+@router.post("/change-email")
+def request_email_change(
+    payload: ChangeEmailIn,
+    request: Request,
+    user: dict = Depends(current_user),
+):
+    """Request a new address; the current address stays active until verified."""
+    _check_origin(request)
+    _throttle(f"change-email:{user['id']}")
+    email = _clean_email(payload.email)
+    if not _valid_email(email):
+        raise HTTPException(422, "Enter a valid e-mail address.")
+    if email == _clean_email(user["email"]):
+        raise HTTPException(422, "That is already the e-mail address on your account.")
+
+    row = store.find_user_by_id(user["id"])
+    if row is None or not row["password_hash"]:
+        raise HTTPException(
+            400,
+            "To change this address, add a password to your account first.",
+        )
+    if not verify_password(row["password_hash"], payload.password):
+        raise HTTPException(401, "Your current password is incorrect.")
+    if store.find_user_by_email(email) is not None:
+        raise HTTPException(409, "An account with this e-mail already exists.")
+
+    token = mailer.create_token(
+        user["id"],
+        mailer.PURPOSE_CHANGE_EMAIL,
+        mailer.VERIFY_TTL_MINUTES,
+        target_email=email,
+    )
+    sent = mailer.send(
+        email,
+        "Confirm your new e-mail address",
+        "Confirm the new e-mail address for your account using this link:\n\n"
+        f"{mailer.email_change_url(token)}\n\n"
+        "Your current address will remain active until you confirm this change.",
+    )
+    return {
+        "status": "ok",
+        "email_sent": sent,
+        "email_delivery_configured": settings.email_delivery_configured,
+    }
+
+
+@router.get("/change-email/confirm")
+def confirm_email_change(token: str = ""):
+    data = mailer.consume_token_data(token, mailer.PURPOSE_CHANGE_EMAIL)
+    if not data or not data.get("target_email"):
+        return RedirectResponse(_app_url("/?email_change=invalid"), status_code=303)
+
+    email = _clean_email(data["target_email"])
+    if not _valid_email(email):
+        return RedirectResponse(_app_url("/?email_change=invalid"), status_code=303)
+    try:
+        updated = store.update_user(
+            data["user_id"],
+            email=email,
+            email_verified=True,
+            email_verified_at=store.iso(store.utcnow()),
+        )
+    except sqlite3.IntegrityError:
+        return RedirectResponse(_app_url("/?email_change=conflict"), status_code=303)
+    if updated is None:
+        return RedirectResponse(_app_url("/?email_change=invalid"), status_code=303)
+
+    # Re-authentication at the old address after an account identity change is
+    # safer than leaving previously issued sessions active.
+    sessions.revoke_all_sessions(data["user_id"])
+    return RedirectResponse(_app_url("/?email_change=ok"), status_code=303)
 
 
 @router.post("/resend-verification")
@@ -535,6 +620,8 @@ def google_callback(
             row["id"],
             full_name=row["full_name"] or name,
             picture_url=picture or row["picture_url"] or "",
+            email_verified=True,
+            email_verified_at=row["email_verified_at"] or store.iso(store.utcnow()),
             last_login_at=store.iso(store.utcnow()),
         )
     else:
@@ -546,6 +633,7 @@ def google_callback(
                 google_sub=sub,
                 provider="google",
                 email_verified=True,
+                email_verified_at=store.iso(store.utcnow()),
                 picture_url=picture or existing["picture_url"] or "",
                 full_name=existing["full_name"] or name,
                 last_login_at=store.iso(store.utcnow()),
