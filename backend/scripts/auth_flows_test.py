@@ -226,7 +226,11 @@ def main() -> int:
 
         settings.auth_google_client_id = "test-client-id.apps.googleusercontent.com"
         settings.auth_google_client_secret = "test-secret"
-        start = client.get("/auth/google/start", follow_redirects=False)
+        # Use the configured public origin so this exercises the Google
+        # authorization redirect itself instead of the canonical-host bounce.
+        start = client.get(
+            "http://localhost:3000/auth/google/start", follow_redirects=False
+        )
         location = start.headers.get("location", "")
         check("google start redirects to Google", start.status_code == 302 and location.startswith("https://accounts.google.com"), location)
         check("google request uses PKCE", "code_challenge_method=S256" in location)
