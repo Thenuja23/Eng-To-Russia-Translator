@@ -63,6 +63,42 @@ def latest_token(purpose: str) -> str:
 
 
 def main() -> int:
+    current_db = settings.auth_db_path
+    legacy_db = os.path.join(tempfile.mkdtemp(prefix="etr-legacy-auth-"), "auth.db")
+    settings.auth_db_path = legacy_db
+    with sqlite3.connect(legacy_db) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE users (
+                id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, full_name TEXT,
+                picture_url TEXT, provider TEXT NOT NULL, password_hash TEXT,
+                google_sub TEXT UNIQUE, email_verified INTEGER NOT NULL DEFAULT 0,
+                role TEXT NOT NULL DEFAULT 'student', created_at TEXT NOT NULL,
+                last_login_at TEXT
+            );
+            CREATE TABLE auth_tokens (
+                id TEXT PRIMARY KEY, user_id TEXT NOT NULL, purpose TEXT NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL, used_at TEXT
+            );
+            INSERT INTO users(id, email, email_verified, created_at)
+                VALUES ('legacy-user', 'legacy@example.com', 0, '2024-01-01T00:00:00+00:00');
+            """
+        )
+    store.init_db()
+    migrated = store.find_user_by_id("legacy-user")
+    check("legacy auth schema migration preserves existing user", migrated is not None)
+    check(
+        "legacy auth schema adds verification timestamp and email-change token fields",
+        migrated is not None
+        and "email_verified_at" in migrated.keys()
+        and "target_email" in {
+            row["name"]
+            for row in sqlite3.connect(legacy_db).execute("PRAGMA table_info(auth_tokens)")
+        },
+    )
+    settings.auth_db_path = current_db
+
     def request_with_ip(remote: str, forwarded: str) -> Request:
         return Request(
             {
