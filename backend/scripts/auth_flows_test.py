@@ -342,23 +342,28 @@ def main() -> int:
         google_start = client.get(
             "http://localhost:3000/auth/google/start", follow_redirects=False
         )
-        google_state = unquote(google_start.headers["location"]).split("state=", 1)[1].split("&", 1)[0]
-        with patch("app.api.routes.auth.google.exchange_code", return_value={
+        google_state = parse_qs(urlparse(google_start.headers["location"]).query)["state"][0]
+        with patch(
+            "app.api.routes.auth.google.exchange_code",
+            return_value={
                 "id_token": "test-id-token",
                 "access_token": "test-access-token",
-            }) as _exchange, patch(
-            "app.api.routes.auth.google.verify_id_token", return_value={
+            },
+        ), patch(
+            "app.api.routes.auth.google.verify_id_token",
+            return_value={
                 "sub": "google-sub-existing",
                 "email": "google-existing@example.com",
                 "email_verified": True,
-            }
-        ) as _verify, patch(
-            "app.api.routes.auth.google.fetch_profile", return_value={
+            },
+        ), patch(
+            "app.api.routes.auth.google.fetch_profile",
+            return_value={
                 "sub": "google-sub-existing",
                 "email": "google-existing@example.com",
                 "name": "Google Existing",
-            }
-        ) as _profile:
+            },
+        ):
             google_callback = client.get(
                 "/auth/google/callback",
                 params={"code": "test-code", "state": google_state},
