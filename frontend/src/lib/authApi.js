@@ -31,22 +31,48 @@ async function request(path, { method = 'GET', body } = {}) {
 
   if (res.status === 204) return null
 
-  let data = null
+  // Read the body once. Proxy-level failures (for example the Vite dev proxy
+  // when the API target is down) are plain text/HTML, not JSON, so parsing
+  // must not be the thing that decides whether we can explain the error.
+  let raw = ''
   try {
-    data = await res.json()
+    raw = await res.text()
   } catch {
-    data = null
+    raw = ''
+  }
+  let data = null
+  if (raw) {
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      data = null
+    }
   }
 
   if (!res.ok) {
     const detail = data && data.detail
-    const message =
+    let message =
       typeof detail === 'string'
         ? detail
         : Array.isArray(detail) && detail[0]?.msg
           ? detail[0].msg
-          : 'Something went wrong. Please try again.'
+          : typeof data?.message === 'string'
+            ? data.message
+            : ''
+    if (!message) {
+      message =
+        res.status >= 500
+          ? `The server could not handle that request (HTTP ${res.status}). The API may be down — start the backend and make sure the frontend proxy points at it.`
+          : `The server returned an unexpected response (HTTP ${res.status}). Please try again.`
+    }
     throw new AuthError(message, res.status)
+  }
+
+  if (!data) {
+    throw new AuthError(
+      'The server returned an empty or non-JSON response. Check that the API backend is running and reachable.',
+      res.status,
+    )
   }
   return data
 }

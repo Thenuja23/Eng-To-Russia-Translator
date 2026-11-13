@@ -13,9 +13,33 @@ const apiPaths = ['/translation', '/text', '/feedback', '/ocr', '/ai', '/vocab',
 // changeOrigin rewrites Host for the backend. The auth routes use those
 // headers to recognise the app's own origin when checking Origin headers and
 // deciding whether cookies need Secure.
-const proxy = Object.fromEntries(
-  apiPaths.map((path) => [path, { target: BACKEND, changeOrigin: true, xfwd: true }]),
-)
+//
+// The error handler matters: if nothing is listening on BACKEND, Node's proxy
+// would answer with an empty 500 and the UI could only say "something went
+// wrong". Returning JSON with the target makes the mistake obvious.
+const proxyTarget = (path) => [
+  path,
+  {
+    target: BACKEND,
+    changeOrigin: true,
+    xfwd: true,
+    configure(proxyServer) {
+      proxyServer.on('error', (err, _request, res) => {
+        if (!res || typeof res.writeHead !== 'function' || res.headersSent) return
+        res.writeHead(502, { 'Content-Type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            detail:
+              `Cannot reach the API backend at ${BACKEND} (${err.code || err.message}). ` +
+              'Start it with "uvicorn app.main:app", or set VITE_BACKEND_URL if it runs elsewhere.',
+          }),
+        )
+      })
+    },
+  },
+]
+
+const proxy = Object.fromEntries(apiPaths.map(proxyTarget))
 
 // Vite rejects requests whose Host header it does not recognise. Hosted
 // previews use their own hostname, so it is supplied at runtime instead of
