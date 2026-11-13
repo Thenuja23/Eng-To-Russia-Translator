@@ -11,6 +11,7 @@ redirect, cancellation and state-mismatch paths are covered here.
 from __future__ import annotations
 
 import os
+import sqlite3
 import tempfile
 from urllib.parse import parse_qs, unquote, urlparse
 from unittest.mock import patch
