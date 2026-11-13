@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import tempfile
+from datetime import timedelta
 from urllib.parse import parse_qs, unquote, urlparse
 from unittest.mock import patch
 
@@ -239,6 +240,25 @@ def main() -> int:
             current = client.get("/auth/me").json()["user"]
             check("account marked verified", current["email_verified"] is True)
             check("verification timestamp recorded", bool(current["email_verified_at"]))
+
+        from app.services.auth import mailer
+
+        expired_value = mailer.create_token(user["id"], mailer.PURPOSE_VERIFY, 1)
+        expired_row, token_digest = latest_token("verify")
+        if expired_row is not None:
+            with store.connect() as connection:
+                connection.execute(
+                    "UPDATE auth_tokens SET token_hash = ?, expires_at = ? WHERE id = ?",
+                    (
+                        token_digest("known-expired-token"),
+                        store.iso(store.utcnow() - timedelta(minutes=1)),
+                        expired_row["id"],
+                    ),
+                )
+        expired_result = client.post(
+            "/auth/verify-email", json={"token": "known-expired-token"}
+        )
+        check("expired verification token is rejected", expired_result.status_code == 400)
 
         # ---------------------------------------------------------------- logout
         check("logout returns 204", client.post("/auth/logout").status_code == 204)
