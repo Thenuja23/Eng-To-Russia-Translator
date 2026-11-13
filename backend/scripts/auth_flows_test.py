@@ -89,14 +89,15 @@ def main() -> int:
     store.init_db()
     migrated = store.find_user_by_id("legacy-user")
     check("legacy auth schema migration preserves existing user", migrated is not None)
+    with sqlite3.connect(legacy_db) as connection:
+        token_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(auth_tokens)")
+        }
     check(
         "legacy auth schema adds verification timestamp and email-change token fields",
         migrated is not None
         and "email_verified_at" in migrated.keys()
-        and "target_email" in {
-            row["name"]
-            for row in sqlite3.connect(legacy_db).execute("PRAGMA table_info(auth_tokens)")
-        },
+        and "target_email" in token_columns,
     )
     settings.auth_db_path = current_db
 
