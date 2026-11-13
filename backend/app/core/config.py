@@ -105,7 +105,8 @@ class Settings(BaseSettings):
     # directly; this prevents callers from choosing their own throttle IP.
     auth_trusted_proxy_ips: str = ""
     # Set true when the site is served over HTTPS in production.
-    auth_cookie_secure: bool = False
+    # In production the site is HTTPS, so cookies must be Secure.
+    auth_cookie_secure: bool = True
     # Public origin of the frontend; used for Google redirects and email links.
     auth_app_base_url: str = "http://localhost:5173"
     # Require a session for the translation/OCR/vocab/AI endpoints. The UI always
@@ -172,7 +173,8 @@ class Settings(BaseSettings):
     cors_origins: str = (
         "http://127.0.0.1:5173,http://localhost:5173,"
         "http://127.0.0.1:4173,http://localhost:4173,"
-        "http://127.0.0.1:3000,http://localhost:3000"
+        "http://127.0.0.1:3000,http://localhost:3000,"
+        "https://eng-to-russia-translator.vercel.app"
     )
     # Also allow any localhost/LAN port during development.
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$"
