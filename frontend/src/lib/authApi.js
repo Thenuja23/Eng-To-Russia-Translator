@@ -89,6 +89,8 @@ export const authApi = {
     request('/auth/reset-password', { method: 'POST', body: { token, password } }),
   verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: { token } }),
   resendVerification: () => request('/auth/resend-verification', { method: 'POST' }),
+  changeEmail: (email, password) =>
+    request('/auth/change-email', { method: 'POST', body: { email, password } }),
   updateProfile: (full_name) =>
     request('/auth/profile', { method: 'PATCH', body: { full_name } }),
 }

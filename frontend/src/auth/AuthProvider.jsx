@@ -38,7 +38,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
-    if (params.has('auth_error') || params.has('verify') || params.has('signed_in')) {
+    if (
+      params.has('auth_error') ||
+      params.has('verify') ||
+      params.has('signed_in') ||
+      params.has('email_change')
+    ) {
       const clean = window.location.pathname + window.location.hash
       window.history.replaceState({}, document.title, clean)
     }
@@ -48,9 +53,12 @@ export function AuthProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const data = await authApi.me()
-      setUser(data?.user ?? null)
+      const nextUser = data?.user ?? null
+      setUser(nextUser)
+      return nextUser
     } catch {
       setUser(null)
+      return null
     } finally {
       setLoading(false)
     }
@@ -124,6 +132,10 @@ export function AuthProvider({ children }) {
     const data = await authApi.resendVerification()
     return data
   }, [])
+  const changeEmail = useCallback(
+    async (email, password) => authApi.changeEmail(email, password),
+    [],
+  )
 
   const value = useMemo(
     () => ({
@@ -138,6 +150,7 @@ export function AuthProvider({ children }) {
       resetPassword,
       verifyEmail,
       resendVerification,
+      changeEmail,
       refresh,
     }),
     [
@@ -151,6 +164,7 @@ export function AuthProvider({ children }) {
       resetPassword,
       verifyEmail,
       resendVerification,
+      changeEmail,
       refresh,
     ],
   )
@@ -164,6 +178,7 @@ function readRedirectNotice() {
   const error = params.get('auth_error')
   const verify = params.get('verify')
   const signedIn = params.get('signed_in')
+  const emailChange = params.get('email_change')
 
   if (error) {
     return {
@@ -178,6 +193,21 @@ function readRedirectNotice() {
     return {
       type: 'error',
       message: 'That confirmation link is invalid or has expired. Request a new one below.',
+    }
+  }
+  if (emailChange === 'ok') {
+    return {
+      type: 'success',
+      message: 'Your e-mail address was changed and verified. Sign in with the new address.',
+    }
+  }
+  if (emailChange === 'conflict') {
+    return { type: 'error', message: 'That e-mail address is already used by another account.' }
+  }
+  if (emailChange === 'invalid') {
+    return {
+      type: 'error',
+      message: 'That e-mail change link is invalid or expired. Request a new one.',
     }
   }
   if (signedIn) {
