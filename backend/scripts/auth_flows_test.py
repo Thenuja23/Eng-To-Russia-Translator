@@ -82,8 +82,8 @@ def main() -> int:
                 token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL, used_at TEXT
             );
-            INSERT INTO users(id, email, email_verified, created_at)
-                VALUES ('legacy-user', 'legacy@example.com', 0, '2024-01-01T00:00:00+00:00');
+            INSERT INTO users(id, email, provider, email_verified, created_at)
+                VALUES ('legacy-user', 'legacy@example.com', 'password', 0, '2024-01-01T00:00:00+00:00');
             """
         )
     store.init_db()
