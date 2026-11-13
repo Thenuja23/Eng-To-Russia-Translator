@@ -130,6 +130,31 @@ sign-in is disabled. If only one is configured, startup fails with a clear
 configuration error. Google OAuth is enabled as soon as both values and the
 registered callback URL are configured; no frontend rebuild is required.
 
+## E-mail verification and password recovery
+
+Password accounts remain unverified until the user opens a time-limited
+confirmation link. Configure SMTP in `backend/.env` before expecting delivery:
+
+```dotenv
+AUTH_APP_BASE_URL=https://your-app.example
+AUTH_SMTP_HOST=smtp.your-provider.example
+AUTH_SMTP_PORT=587
+AUTH_SMTP_USER=your-smtp-user
+AUTH_SMTP_PASSWORD=your-smtp-password
+AUTH_SMTP_FROM=accounts@your-domain.example
+AUTH_SMTP_STARTTLS=true
+AUTH_COOKIE_SECURE=true
+```
+
+Restart the backend, sign in to the unverified account, and choose **Resend
+link**. Then open the link from that mailbox and use **Refresh status** if the
+app was already open. Until SMTP is configured the API creates a hashed,
+single-use token but explicitly reports that it did not send an e-mail; it does
+not mark the account verified. A password account can request an e-mail change
+after confirming its current password; the existing address remains active
+until the new address is confirmed. Google accounts become verified from
+Google's server-validated `email_verified` claim.
+
 ## Optional AI ensemble (ChatGPT + Claude + Perplexity)
 
 The AI layer is **off by default until a key is added**. Keys live only on the
