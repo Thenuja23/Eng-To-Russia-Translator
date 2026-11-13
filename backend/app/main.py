@@ -23,6 +23,12 @@ async def lifespan(_: FastAPI):
         )
     elif not settings.google_redirect_uri.startswith("https://"):
         logger.warning("Google OAuth is using a non-HTTPS callback outside production.")
+    if settings.auth_cookie_secure and settings.auth_app_base_url.startswith("http://"):
+        logger.warning(
+            "AUTH_COOKIE_SECURE=true but AUTH_APP_BASE_URL is HTTP. Browsers will "
+            "discard the session cookie, so sign-in will appear to do nothing. "
+            "Set AUTH_COOKIE_SECURE=false for local HTTP development."
+        )
     # Accounts, sessions and one-time tokens live in SQLite.
     auth_store.init_db()
     yield

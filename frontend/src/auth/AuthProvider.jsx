@@ -30,7 +30,19 @@ const REDIRECT_MESSAGES = {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [notice, setNotice] = useState(() => readRedirectNotice())
+  const [notice, setNotice] = useState(readRedirectNotice)
+
+  // Reading the redirect notice above must stay pure (React may call the
+  // initializer twice in development). Drop the query string afterwards so a
+  // refresh does not replay the message.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('auth_error') || params.has('verify') || params.has('signed_in')) {
+      const clean = window.location.pathname + window.location.hash
+      window.history.replaceState({}, document.title, clean)
+    }
+  }, [])
 
   // Automatic authentication-state detection: one authoritative server call.
   const refresh = useCallback(async () => {
@@ -153,27 +165,23 @@ function readRedirectNotice() {
   const verify = params.get('verify')
   const signedIn = params.get('signed_in')
 
-  let notice = null
   if (error) {
-    notice = {
+    return {
       type: 'error',
       message: REDIRECT_MESSAGES[error] || 'Sign-in failed. Please try again.',
     }
-  } else if (verify === 'ok') {
-    notice = { type: 'success', message: 'Your e-mail address is confirmed.' }
-  } else if (verify === 'invalid') {
-    notice = {
+  }
+  if (verify === 'ok') {
+    return { type: 'success', message: 'Your e-mail address is confirmed.' }
+  }
+  if (verify === 'invalid') {
+    return {
       type: 'error',
       message: 'That confirmation link is invalid or has expired. Request a new one below.',
     }
-  } else if (signedIn) {
-    notice = { type: 'success', message: 'Signed in with Google.' }
   }
-
-  if (error || verify || signedIn) {
-    // Drop the query string so a refresh does not replay the message.
-    const clean = window.location.pathname + window.location.hash
-    window.history.replaceState({}, document.title, clean)
+  if (signedIn) {
+    return { type: 'success', message: 'Signed in with Google.' }
   }
-  return notice
+  return null
 }
