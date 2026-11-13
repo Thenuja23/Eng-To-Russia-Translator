@@ -468,6 +468,10 @@ def confirm_email_change(token: str = ""):
     email = _clean_email(data["target_email"])
     if not _valid_email(email):
         return RedirectResponse(_app_url("/?email_change=invalid"), status_code=303)
+    previous = store.find_user_by_id(data["user_id"])
+    if previous is None:
+        return RedirectResponse(_app_url("/?email_change=invalid"), status_code=303)
+    old_email = previous["email"]
     try:
         updated = store.update_user(
             data["user_id"],
@@ -483,6 +487,12 @@ def confirm_email_change(token: str = ""):
     # Re-authentication at the old address after an account identity change is
     # safer than leaving previously issued sessions active.
     sessions.revoke_all_sessions(data["user_id"])
+    mailer.send(
+        old_email,
+        "Your account e-mail address changed",
+        "The e-mail address on your account was changed after confirmation. "
+        "If you did not request this, reset your password and contact support.",
+    )
     return RedirectResponse(_app_url("/?email_change=ok"), status_code=303)
 
 
