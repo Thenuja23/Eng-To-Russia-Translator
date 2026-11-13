@@ -353,10 +353,9 @@ def forgot_password(payload: EmailIn, request: Request):
     if not _valid_email(email):
         raise HTTPException(422, "Enter a valid e-mail address.")
     row = store.find_user_by_email(email)
-    sent = False
     if row is not None and row["password_hash"]:
         token = mailer.create_token(row["id"], mailer.PURPOSE_RESET, mailer.RESET_TTL_MINUTES)
-        sent = mailer.send(
+        mailer.send(
             email,
             "Reset your password",
             "Use this link to choose a new password:\n\n"
