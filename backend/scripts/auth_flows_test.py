@@ -403,7 +403,7 @@ def main() -> int:
             },
         ):
             google_callback = client.get(
-                "/auth/google/callback",
+                "http://localhost:3000/auth/google/callback",
                 params={"code": "test-code", "state": google_state},
                 follow_redirects=False,
             )
