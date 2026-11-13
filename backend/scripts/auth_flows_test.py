@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import os
 import tempfile
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlparse
+from unittest.mock import patch
 
 TMP_DB = os.path.join(tempfile.mkdtemp(prefix="etr-auth-"), "auth.db")
 os.environ["AUTH_DB_PATH"] = TMP_DB
@@ -133,6 +134,7 @@ def main() -> int:
         user = created.json()["user"]
         check("e-mail normalised to lowercase", user["email"] == "ayesha@example.com", user.get("email"))
         check("new account starts unverified", user["email_verified"] is False)
+        check("new account has no verification timestamp", user["email_verified_at"] is None)
         check("no password hash is returned", "password_hash" not in user)
         check("session cookie set", "etr_session" in client.cookies)
         check("email_sent is false without SMTP", created.json()["email_sent"] is False)
@@ -166,6 +168,11 @@ def main() -> int:
         check("foreign Origin rejected", blocked.status_code == 403, blocked.text)
 
         # ------------------------------------------------------------ e-mail verify
+        resent = client.post("/auth/resend-verification")
+        check(
+            "resend reports missing SMTP without claiming delivery",
+            resent.status_code == 200 and resent.json()["email_sent"] is False,
+        )
         row, digest = latest_token("verify")
         check("verification token stored", row is not None)
         check("tokens are hashed at rest", row is not None and row["token_hash"] != "plaintext")
@@ -175,11 +182,25 @@ def main() -> int:
                     "UPDATE auth_tokens SET token_hash = ? WHERE id = ?",
                     (digest("known-verification-token"), row["id"]),
                 )
-            verified = client.post("/auth/verify-email", json={"token": "known-verification-token"})
-            check("verification token accepted", verified.status_code == 200, verified.text)
-            again = client.post("/auth/verify-email", json={"token": "known-verification-token"})
-            check("verification token is single-use", again.status_code == 400, again.text)
-            check("account marked verified", client.get("/auth/me").json()["user"]["email_verified"] is True)
+            verified = client.get(
+                "/auth/verify-email",
+                params={"token": "known-verification-token"},
+                follow_redirects=False,
+            )
+            check(
+                "verification link redirects to success",
+                verified.status_code == 303 and "verify=ok" in verified.headers.get("location", ""),
+                verified.text,
+            )
+            again = client.get(
+                "/auth/verify-email",
+                params={"token": "known-verification-token"},
+                follow_redirects=False,
+            )
+            check("verification token is single-use", "verify=invalid" in again.headers.get("location", ""))
+            current = client.get("/auth/me").json()["user"]
+            check("account marked verified", current["email_verified"] is True)
+            check("verification timestamp recorded", bool(current["email_verified_at"]))
 
         # ---------------------------------------------------------------- logout
         check("logout returns 204", client.post("/auth/logout").status_code == 204)
@@ -216,6 +237,10 @@ def main() -> int:
         check("forgot-password answers for unknown accounts", ghost.status_code == 200)
         real = client.post("/auth/forgot-password", json={"email": "ayesha@example.com"})
         check("forgot-password creates a token", real.status_code == 200 and real.json()["status"] == "ok")
+        check(
+            "forgot-password response does not reveal account existence",
+            ghost.json() == real.json(),
+        )
 
         reset_row, reset_digest = latest_token("reset")
         check("reset token stored", reset_row is not None)
@@ -305,6 +330,45 @@ def main() -> int:
             str(mismatch.headers.get("location")),
         )
 
+        # A previously linked Google account must take the trusted verified
+        # claim on sign-in, even if its stored flag predates that behavior.
+        google_user = store.create_user(
+            email="google-existing@example.com",
+            full_name="Google Existing",
+            provider="google",
+            google_sub="google-sub-existing",
+            email_verified=False,
+        )
+        google_start = client.get(
+            "http://localhost:3000/auth/google/start", follow_redirects=False
+        )
+        google_state = unquote(google_start.headers["location"]).split("state=", 1)[1].split("&", 1)[0]
+        with patch("app.api.routes.auth.google.exchange_code", return_value={
+                "id_token": "test-id-token",
+                "access_token": "test-access-token",
+            }) as _exchange, patch(
+            "app.api.routes.auth.google.verify_id_token", return_value={
+                "sub": "google-sub-existing",
+                "email": "google-existing@example.com",
+                "email_verified": True,
+            }
+        ) as _verify, patch(
+            "app.api.routes.auth.google.fetch_profile", return_value={
+                "sub": "google-sub-existing",
+                "email": "google-existing@example.com",
+                "name": "Google Existing",
+            }
+        ) as _profile:
+            google_callback = client.get(
+                "/auth/google/callback",
+                params={"code": "test-code", "state": google_state},
+                follow_redirects=False,
+            )
+        google_user_after = store.find_user_by_id(google_user["id"])
+        check("linked Google account finishes sign-in", google_callback.status_code == 303)
+        check("Google verified claim updates account status", bool(google_user_after["email_verified"]))
+        check("Google verification timestamp recorded", bool(google_user_after["email_verified_at"]))
+
         settings.auth_google_client_id = None
         settings.auth_google_client_secret = None
 
@@ -324,6 +388,63 @@ def main() -> int:
             login_again.status_code == 200 and client.get("/vocab/status").status_code == 200,
         )
         settings.auth_protect_features = False
+
+        # ----------------------------------------------------------- email change
+        wrong_password = client.post(
+            "/auth/change-email",
+            json={"email": "ayesha-new@example.com", "password": "WrongPass1"},
+        )
+        check("email change requires the current password", wrong_password.status_code == 401)
+        requested_change = client.post(
+            "/auth/change-email",
+            json={"email": "ayesha-new@example.com", "password": "NewPassword456"},
+        )
+        check(
+            "email change request keeps SMTP delivery status honest",
+            requested_change.status_code == 200
+            and requested_change.json()["email_sent"] is False,
+        )
+        check(
+            "current address remains unchanged until confirmation",
+            client.get("/auth/me").json()["user"]["email"] == "ayesha@example.com",
+        )
+        change_row, change_digest = latest_token("change_email")
+        check(
+            "email change token stores target and hash only",
+            change_row is not None
+            and change_row["target_email"] == "ayesha-new@example.com"
+            and change_row["token_hash"] != "plaintext",
+        )
+        if change_row is not None:
+            with store.connect() as connection:
+                connection.execute(
+                    "UPDATE auth_tokens SET token_hash = ? WHERE id = ?",
+                    (change_digest("known-email-change-token"), change_row["id"]),
+                )
+            confirmed = client.get(
+                "/auth/change-email/confirm",
+                params={"token": "known-email-change-token"},
+                follow_redirects=False,
+            )
+            check(
+                "email change confirms only through its token",
+                confirmed.status_code == 303
+                and "email_change=ok" in confirmed.headers.get("location", ""),
+            )
+            check("email change revokes old sessions", client.get("/auth/me").status_code == 401)
+            new_login = client.post(
+                "/auth/login",
+                json={"email": "ayesha-new@example.com", "password": "NewPassword456"},
+            )
+            check("new email can sign in after confirmation", new_login.status_code == 200)
+            new_user = new_login.json()["user"]
+            check("new address is marked verified", new_user["email_verified"] is True)
+            check("new address verification time is recorded", bool(new_user["email_verified_at"]))
+            old_login = client.post(
+                "/auth/login",
+                json={"email": "ayesha@example.com", "password": "NewPassword456"},
+            )
+            check("old address no longer signs in", old_login.status_code == 401)
 
     print()
     print(f"{len(PASSED)} passed, {len(FAILED)} failed")
