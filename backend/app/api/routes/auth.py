@@ -395,7 +395,7 @@ def resend_verification(request: Request, user: dict = Depends(current_user)):
 
 # --------------------------------------------------------------------- Google
 @router.get("/google/start")
-def google_start(request: Request, redirect_to: str = "/"):
+def google_start(request: Request, redirect_to: str = "/", canonical: int = 0):
     if not google.configured():
         return RedirectResponse(_app_url("/?auth_error=google_not_configured"), status_code=303)
     safe_target = redirect_to if redirect_to.startswith("/") else "/"
@@ -404,10 +404,15 @@ def google_start(request: Request, redirect_to: str = "/"):
     # opened on another hostname (127.0.0.1 versus localhost, or a preview
     # host), bounce to the canonical origin first so start and callback share
     # one host and the state cookie survives.
-    canonical = settings.auth_app_base_url.rstrip("/")
-    if canonical and _request_origin(request).rstrip("/") != canonical:
+    #
+    # `canonical=1` marks the bounced request. Honouring it (instead of
+    # comparing origins again) guarantees a single hop even when a reverse
+    # proxy hides the browser's host from this endpoint; the worst case then is
+    # a state-cookie mismatch, which the callback reports instead of looping.
+    base = settings.auth_app_base_url.rstrip("/")
+    if base and not canonical and _request_origin(request).rstrip("/") != base:
         return RedirectResponse(
-            f"{canonical}/auth/google/start?redirect_to={quote(safe_target, safe='')}",
+            f"{base}/auth/google/start?redirect_to={quote(safe_target, safe='')}&canonical=1",
             status_code=303,
         )
     state, challenge = google.start_flow(safe_target)
