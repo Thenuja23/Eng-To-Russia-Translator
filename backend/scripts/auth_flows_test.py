@@ -243,7 +243,7 @@ def main() -> int:
 
         from app.services.auth import mailer
 
-        expired_value = mailer.create_token(user["id"], mailer.PURPOSE_VERIFY, 1)
+        mailer.create_token(user["id"], mailer.PURPOSE_VERIFY, 1)
         expired_row, token_digest = latest_token("verify")
         if expired_row is not None:
             with store.connect() as connection:
