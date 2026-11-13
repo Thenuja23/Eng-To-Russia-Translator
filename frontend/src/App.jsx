@@ -270,11 +270,11 @@ function AccountNotices() {
     setSent('')
     try {
       const current = await refresh()
-      setSent(
-        current?.email_verified
-          ? 'Your e-mail is verified.'
-          : 'It is still waiting for confirmation. Check your inbox and spam folder.',
-      )
+      if (current?.email_verified) {
+        setNotice({ type: 'success', message: 'Your e-mail address is confirmed.' })
+      } else {
+        setSent('It is still waiting for confirmation. Check your inbox and spam folder.')
+      }
     } finally {
       setRefreshing(false)
     }
