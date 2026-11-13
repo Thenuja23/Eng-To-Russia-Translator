@@ -14,6 +14,12 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.fw-horizontal-scroll {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Slim scrollbars for the log panels */
@@ -27,4 +33,24 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 9999px;
+}
+
+@media (max-width: 639px) {
+  .fw-horizontal-scroll {
+    scrollbar-width: none;
+  }
+
+  .fw-horizontal-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button {
+    min-height: 2.75rem;
+  }
 }
