@@ -94,6 +94,22 @@ def main() -> int:
         check("config endpoint is public", config.status_code == 200)
         check("google reports unconfigured", config.json()["google_enabled"] is False)
 
+        old_upload_limit = settings.max_ocr_upload_bytes
+        settings.max_ocr_upload_bytes = 8
+        non_image = client.post(
+            "/ocr", files={"file": ("notes.txt", b"hello", "text/plain")}
+        )
+        check("OCR rejects non-image uploads", non_image.status_code == 400)
+        oversized_image = client.post(
+            "/ocr", files={"file": ("large.png", b"123456789", "image/png")}
+        )
+        check("OCR rejects uploads over the configured limit", oversized_image.status_code == 413)
+        empty_image = client.post(
+            "/ocr", files={"file": ("empty.png", b"", "image/png")}
+        )
+        check("OCR rejects empty image uploads", empty_image.status_code == 400)
+        settings.max_ocr_upload_bytes = old_upload_limit
+
         check("me without a session is 401", client.get("/auth/me").status_code == 401)
 
         # ------------------------------------------------------------- register
