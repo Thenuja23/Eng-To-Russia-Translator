@@ -24,13 +24,19 @@ RESET_TTL_MINUTES = 60
 
 PURPOSE_VERIFY = "verify"
 PURPOSE_RESET = "reset"
+PURPOSE_CHANGE_EMAIL = "change_email"
 
 
 def _hash(token: str) -> str:
     return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
 
 
-def create_token(user_id: str, purpose: str, ttl_minutes: int) -> str:
+def create_token(
+    user_id: str,
+    purpose: str,
+    ttl_minutes: int,
+    target_email: Optional[str] = None,
+) -> str:
     token = secrets.token_urlsafe(32)
     with store.connect() as connection:
         # Only the newest link for a purpose should work.
@@ -40,8 +46,9 @@ def create_token(user_id: str, purpose: str, ttl_minutes: int) -> str:
         )
         connection.execute(
             """
-            INSERT INTO auth_tokens (id, user_id, purpose, token_hash, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO auth_tokens
+                (id, user_id, purpose, token_hash, created_at, expires_at, target_email)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 store.new_id(),
@@ -50,18 +57,22 @@ def create_token(user_id: str, purpose: str, ttl_minutes: int) -> str:
                 _hash(token),
                 store.iso(store.utcnow()),
                 store.in_minutes(ttl_minutes),
+                target_email,
             ),
         )
     return token
 
 
-def consume_token(token: str, purpose: str) -> Optional[str]:
-    """Mark a token used and return its user id, or None when invalid."""
+def consume_token_data(token: str, purpose: str) -> Optional[dict]:
+    """Atomically consume a valid token and return its non-secret payload."""
     if not token:
         return None
     token_hash = _hash(token)
     now = store.iso(store.utcnow())
     with store.connect() as connection:
+        # Serialize consumers so two concurrent requests cannot both accept a
+        # single-use link.
+        connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
             "SELECT * FROM auth_tokens WHERE token_hash = ? AND purpose = ?",
             (token_hash, purpose),
@@ -69,9 +80,17 @@ def consume_token(token: str, purpose: str) -> Optional[str]:
         if row is None or row["used_at"] or row["expires_at"] <= now:
             return None
         connection.execute(
-            "UPDATE auth_tokens SET used_at = ? WHERE id = ?", (now, row["id"])
+            "UPDATE auth_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL",
+            (now, row["id"]),
         )
-        return row["user_id"]
+        if connection.execute("SELECT changes()").fetchone()[0] != 1:
+            return None
+        return {"user_id": row["user_id"], "target_email": row["target_email"]}
+
+
+def consume_token(token: str, purpose: str) -> Optional[str]:
+    data = consume_token_data(token, purpose)
+    return data["user_id"] if data else None
 
 
 def verification_url(token: str) -> str:
@@ -82,6 +101,11 @@ def verification_url(token: str) -> str:
 def reset_url(token: str) -> str:
     base = settings.auth_app_base_url.rstrip("/")
     return f"{base}/reset-password?token={token}"
+
+
+def email_change_url(token: str) -> str:
+    base = settings.auth_app_base_url.rstrip("/")
+    return f"{base}/auth/change-email/confirm?token={token}"
 
 
 def send(to_email: str, subject: str, body: str) -> bool:

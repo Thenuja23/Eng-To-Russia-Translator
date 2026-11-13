@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT,
     google_sub TEXT UNIQUE,
     email_verified INTEGER NOT NULL DEFAULT 0,
+    email_verified_at TEXT,
     role TEXT NOT NULL DEFAULT 'student',
     created_at TEXT NOT NULL,
     last_login_at TEXT
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
-    used_at TEXT
+    used_at TEXT,
+    target_email TEXT
 );
 
 CREATE TABLE IF NOT EXISTS oauth_states (
@@ -104,6 +106,19 @@ def connect() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connect() as connection:
         connection.executescript(SCHEMA)
+        # Idempotent, additive migrations preserve all existing account and
+        # token records while bringing databases created by earlier versions
+        # up to the current schema.
+        user_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(users)")
+        }
+        if "email_verified_at" not in user_columns:
+            connection.execute("ALTER TABLE users ADD COLUMN email_verified_at TEXT")
+        token_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(auth_tokens)")
+        }
+        if "target_email" not in token_columns:
+            connection.execute("ALTER TABLE auth_tokens ADD COLUMN target_email TEXT")
 
 
 def row_to_user(row: Optional[sqlite3.Row]) -> Optional[dict]:
@@ -117,6 +132,7 @@ def row_to_user(row: Optional[sqlite3.Row]) -> Optional[dict]:
         "picture_url": row["picture_url"] or "",
         "provider": row["provider"],
         "email_verified": bool(row["email_verified"]),
+        "email_verified_at": row["email_verified_at"],
         "role": row["role"],
         "created_at": row["created_at"],
         "last_login_at": row["last_login_at"],
@@ -159,8 +175,8 @@ def create_user(
             """
             INSERT INTO users (id, email, full_name, picture_url, provider,
                                password_hash, google_sub, email_verified,
-                               role, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', ?)
+                               email_verified_at, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'student', ?)
             """,
             (
                 user_id,
@@ -171,6 +187,7 @@ def create_user(
                 password_hash,
                 google_sub,
                 1 if email_verified else 0,
+                iso(utcnow()) if email_verified else None,
                 iso(utcnow()),
             ),
         )
@@ -180,7 +197,7 @@ def create_user(
 
 def update_user(user_id: str, **fields) -> Optional[dict]:
     allowed = {
-        "full_name", "picture_url", "email_verified", "last_login_at",
+        "email", "full_name", "picture_url", "email_verified", "email_verified_at", "last_login_at",
         "password_hash", "google_sub", "provider",
     }
     assignments = []
