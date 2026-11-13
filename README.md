@@ -117,6 +117,13 @@ callback path. Do not put the client secret in frontend environment variables.
 Set `CORS_ORIGINS` to the explicit frontend origins when the API is accessed
 cross-origin; keep credentialed requests enabled and use HTTPS in production.
 
+`AUTH_APP_BASE_URL` must be the exact public origin registered with Google. If
+you open the app on a different hostname — `127.0.0.1` instead of `localhost`,
+or a preview URL — the Google button first redirects to that canonical origin so
+that start and callback share one host and the OAuth state cookie survives.
+E-mail verification and reset links also use it, so set it to the address users
+should actually visit.
+
 The backend validates the credential pair at startup. If both are omitted,
 password authentication remains available and startup logs explain that Google
 sign-in is disabled. If only one is configured, startup fails with a clear
