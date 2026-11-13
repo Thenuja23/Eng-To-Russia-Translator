@@ -111,6 +111,7 @@ export function PasswordField({
   hint,
   id,
   name,
+  disabled = false,
 }) {
   const [visible, setVisible] = useState(false)
   const generatedId = useId()
@@ -131,14 +132,16 @@ export function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
+          disabled={disabled}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error || hint ? `${fieldId}-help` : undefined}
-          className="w-full rounded-xl border border-gray-200 bg-white/90 px-3.5 py-2.5 pr-16 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-700 dark:bg-slate-900/80 dark:text-gray-100"
+          className="w-full rounded-xl border border-gray-200 bg-white/90 px-3.5 py-2.5 pr-16 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900/80 dark:text-gray-100"
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="absolute inset-y-0 right-1.5 my-auto h-7 rounded-lg px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-300 dark:hover:bg-slate-800"
+          disabled={disabled}
+          className="absolute inset-y-0 right-1.5 my-auto h-7 rounded-lg px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800"
           aria-label={visible ? 'Hide password' : 'Show password'}
         >
           {visible ? 'Hide' : 'Show'}

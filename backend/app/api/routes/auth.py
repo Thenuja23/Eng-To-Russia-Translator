@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sqlite3
 import time
 from typing import Dict, List, Optional
 
@@ -24,7 +25,12 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.auth import db as store
 from app.services.auth import google, mailer, sessions
-from app.services.auth.passwords import hash_password, strength_errors, verify_password
+from app.services.auth.passwords import (
+    hash_password,
+    needs_rehash,
+    strength_errors,
+    verify_password,
+)
 
 logger = logging.getLogger("app.auth")
 
@@ -88,6 +94,11 @@ def _throttle(key: str) -> None:
     _ATTEMPTS[key] = recent
 
 
+def _clear_throttle(key: str) -> None:
+    """Forget failed attempts after a successful sign-in."""
+    _ATTEMPTS.pop(key, None)
+
+
 def _check_origin(request: Request) -> None:
     """Reject cross-site form posts; cookies are SameSite=Lax as well.
 
@@ -111,6 +122,10 @@ def _check_origin(request: Request) -> None:
         return
     allowed = settings.cors_origin_list
     if origin in allowed:
+        return
+    # The configured public frontend origin is always trusted, even when a
+    # reverse proxy rewrites the Host header before forwarding to this API.
+    if origin == settings.auth_app_base_url.rstrip("/"):
         return
     regex = (settings.cors_origin_regex or "").strip()
     if regex:
@@ -203,12 +218,16 @@ def register(payload: RegisterIn, request: Request, response: Response):
     if store.find_user_by_email(email) is not None:
         raise HTTPException(409, "An account with this e-mail already exists. Try signing in.")
 
-    user = store.create_user(
-        email=email,
-        full_name=payload.full_name.strip() or email.split("@")[0],
-        password_hash=hash_password(payload.password),
-        provider="password",
-    )
+    try:
+        user = store.create_user(
+            email=email,
+            full_name=payload.full_name.strip() or email.split("@")[0],
+            password_hash=hash_password(payload.password),
+            provider="password",
+        )
+    except sqlite3.IntegrityError:
+        # Another request created the same account in the meantime.
+        raise HTTPException(409, "An account with this e-mail already exists. Try signing in.")
     token = mailer.create_token(user["id"], mailer.PURPOSE_VERIFY, mailer.VERIFY_TTL_MINUTES)
     sent = mailer.send(
         email,
@@ -229,14 +248,20 @@ def register(payload: RegisterIn, request: Request, response: Response):
 def login(payload: LoginIn, request: Request, response: Response):
     _check_origin(request)
     email = _clean_email(payload.email)
-    _throttle(f"login:{email or _client_ip(request)}")
+    throttle_key = f"login:{email or _client_ip(request)}"
+    _throttle(throttle_key)
     row = store.find_user_by_email(email)
     if row is None or not row["password_hash"] or not verify_password(
         row["password_hash"], payload.password
     ):
         raise HTTPException(401, "E-mail or password is incorrect.")
 
-    store.update_user(row["id"], last_login_at=store.iso(store.utcnow()))
+    _clear_throttle(throttle_key)
+    updates = {"last_login_at": store.iso(store.utcnow())}
+    if needs_rehash(row["password_hash"]):
+        # Upgrade legacy/mismatched hash formats transparently on sign-in.
+        updates["password_hash"] = hash_password(payload.password)
+    store.update_user(row["id"], **updates)
     token = sessions.create_session(
         row["id"], request.headers.get("user-agent", ""), _client_ip(request)
     )
@@ -250,7 +275,10 @@ def logout(request: Request, response: Response):
     _check_origin(request)
     sessions.revoke_session(request.cookies.get(settings.auth_cookie_name))
     _clear_session_cookie(response)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    # Returning None keeps FastAPI's declared 204 status while still merging
+    # the Set-Cookie header set on the injected response (it clears the
+    # browser cookie as well as the server-side session).
+    return None
 
 
 @router.get("/me")
@@ -378,7 +406,16 @@ def google_callback(
     """Google redirects here; finish the flow and issue a session."""
     cookie_state = request.cookies.get("etr_oauth_state", "")
     if error:
-        response = RedirectResponse(_app_url(f"/?auth_error=google_{error}"), status_code=303)
+        # Only echo known OAuth error codes back through the redirect.
+        known_errors = {
+            "access_denied",
+            "server_error",
+            "temporarily_unavailable",
+            "invalid_request",
+            "unauthorized_client",
+        }
+        code = error if error in known_errors else "failed"
+        response = RedirectResponse(_app_url(f"/?auth_error=google_{code}"), status_code=303)
         response.delete_cookie("etr_oauth_state", path="/")
         return response
 
@@ -418,7 +455,10 @@ def google_callback(
 
     sub = str(profile["sub"])
     email = _clean_email(profile.get("email", ""))
-    if not email or not profile.get("email_verified", True):
+    email_verified = profile.get("email_verified", False)
+    if isinstance(email_verified, str):
+        email_verified = email_verified.strip().lower() in ("true", "1")
+    if not email or not email_verified:
         response = RedirectResponse(_app_url("/?auth_error=google_email"), status_code=303)
         response.delete_cookie("etr_oauth_state", path="/")
         return response

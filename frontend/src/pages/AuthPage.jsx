@@ -61,6 +61,17 @@ export default function AuthPage() {
     }
   }, [])
 
+  // A Google redirect (or the back/forward cache) can leave the buttons in a
+  // permanent "busy" state; reset them when the page is shown again.
+  useEffect(() => {
+    function onPageShow() {
+      setGoogleBusy(false)
+      setBusy(false)
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
+
   function switchMode(next) {
     setMode(next)
     setError('')

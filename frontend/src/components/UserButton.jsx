@@ -51,9 +51,12 @@ export default function UserButton({ className = '' }) {
 
   async function handleLogout() {
     setBusy(true)
+    setResent('')
     try {
       await logout()
       setOpen(false)
+    } catch (err) {
+      setResent(err?.message || 'Could not sign out. Please try again.')
     } finally {
       setBusy(false)
     }

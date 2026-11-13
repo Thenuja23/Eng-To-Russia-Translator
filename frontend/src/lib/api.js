@@ -1,14 +1,15 @@
 // Single place that knows where the API lives and how to talk to it.
 //
-// By default requests are relative, so the Vite dev server proxies them to
-// FastAPI on the server (see vite.config.js). That keeps the browser on one
-// origin, which also makes the app work through a remote preview hostname.
-// For a separate API host, set VITE_API_URL at build time.
+// By default requests are relative, so the Vite dev/preview server proxies
+// them to FastAPI on the server (see vite.config.js). That keeps the browser on
+// one origin, which is required for the HttpOnly session cookie and also makes
+// the app work through a remote preview hostname. For a separate API host, set
+// VITE_API_URL at build time.
 const configuredApi = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
-const onOwnMachine =
-  typeof window !== 'undefined' &&
-  ['localhost', '127.0.0.1', '[::1]', '::1'].includes(window.location.hostname)
-export const API = configuredApi || (onOwnMachine ? 'http://127.0.0.1:8000' : '')
+export const API = configuredApi
+
+const apiFetch = (path, options = {}) =>
+  fetch(`${API}${path}`, { credentials: 'include', ...options })
 
 async function parseError(res) {
   let detail = `HTTP ${res.status}`
@@ -22,7 +23,7 @@ async function parseError(res) {
 }
 
 export async function translateText(text, srcLang = 'en', tgtLang = 'ru', engine) {
-  const res = await fetch(`${API}/translation/`, {
+  const res = await apiFetch('/translation/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, src_lang: srcLang, tgt_lang: tgtLang, ...(engine ? { engine } : {}) }),
@@ -36,7 +37,7 @@ let translationEnginesPromise = null
 /** Available translation engines, including whether Google is configured. */
 export async function translationEngines() {
   if (!translationEnginesPromise) {
-    translationEnginesPromise = fetch(`${API}/translation/engines`)
+    translationEnginesPromise = apiFetch('/translation/engines')
       .then(async (res) => {
         if (!res.ok) throw new Error(await parseError(res))
         return res.json()
@@ -50,7 +51,7 @@ export async function translationEngines() {
 }
 
 export async function processText(text) {
-  const res = await fetch(`${API}/text/process`, {
+  const res = await apiFetch('/text/process', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -60,7 +61,7 @@ export async function processText(text) {
 }
 
 export async function submitFeedback(payload) {
-  const res = await fetch(`${API}/feedback/`, {
+  const res = await apiFetch('/feedback/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -73,7 +74,7 @@ export async function submitFeedback(payload) {
 export async function ocrImage(file) {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(`${API}/ocr`, { method: 'POST', body: form })
+  const res = await apiFetch('/ocr', { method: 'POST', body: form })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json()
 }
@@ -85,7 +86,7 @@ let aiStatusPromise = null
 /** Provider availability. Cached after the first successful call. */
 export async function aiStatus() {
   if (!aiStatusPromise) {
-    aiStatusPromise = fetch(`${API}/ai/status`)
+    aiStatusPromise = apiFetch('/ai/status')
       .then(async (res) => {
         if (!res.ok) throw new Error(await parseError(res))
         return res.json()
@@ -99,7 +100,7 @@ export async function aiStatus() {
 }
 
 async function aiPost(path, payload) {
-  const res = await fetch(`${API}/ai/${path}`, {
+  const res = await apiFetch(`/ai/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -143,7 +144,7 @@ export function aiExplain({ text, translation = '', srcLang = 'en', tgtLang = 'r
  * Resolves to { words: [...], mode: 'ai' | 'offline', stats, notice }.
  */
 export async function analyzeVocab(text) {
-  const res = await fetch(`${API}/vocab/analyze`, {
+  const res = await apiFetch('/vocab/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),

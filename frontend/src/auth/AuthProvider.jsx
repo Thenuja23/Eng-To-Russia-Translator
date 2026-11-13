@@ -94,12 +94,9 @@ export function AuthProvider({ children }) {
   )
 
   const logout = useCallback(async () => {
-    try {
-      await authApi.logout()
-    } finally {
-      setUser(null)
-      setNotice({ type: 'success', message: 'You have been signed out.' })
-    }
+    await authApi.logout()
+    setUser(null)
+    setNotice({ type: 'success', message: 'You have been signed out.' })
   }, [])
 
   const forgotPassword = useCallback((email) => authApi.forgotPassword(email), [])
