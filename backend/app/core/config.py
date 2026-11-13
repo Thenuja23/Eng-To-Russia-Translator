@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # Reject absurdly large inputs instead of blocking the worker.
     max_text_chars: int = 20_000
+    max_ocr_upload_bytes: int = 10 * 1024 * 1024
 
     # ------------------------------------------------------ Google Translate ----
     # Optional Google Cloud Translation (Basic v2) engine. Set an API key to
@@ -98,6 +99,10 @@ class Settings(BaseSettings):
     auth_db_path: str = str(Path(__file__).resolve().parents[2] / "auth.db")
     auth_session_days: int = 30
     auth_cookie_name: str = "etr_session"
+    # Only trust X-Forwarded-For when the immediate peer matches this explicit
+    # list of proxy IPs/CIDRs. Leave empty when clients can reach the API
+    # directly; this prevents callers from choosing their own throttle IP.
+    auth_trusted_proxy_ips: str = ""
     # Set true when the site is served over HTTPS in production.
     auth_cookie_secure: bool = False
     # Public origin of the frontend; used for Google redirects and email links.

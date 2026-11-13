@@ -18,8 +18,10 @@ TMP_DB = os.path.join(tempfile.mkdtemp(prefix="etr-auth-"), "auth.db")
 os.environ["AUTH_DB_PATH"] = TMP_DB
 
 from fastapi.testclient import TestClient  # noqa: E402
+from starlette.requests import Request  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
+from app.api.routes.auth import _client_ip  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.auth import db as store  # noqa: E402
 
@@ -60,6 +62,32 @@ def latest_token(purpose: str) -> str:
 
 
 def main() -> int:
+    def request_with_ip(remote: str, forwarded: str) -> Request:
+        return Request(
+            {
+                "type": "http",
+                "http_version": "1.1",
+                "method": "GET",
+                "scheme": "http",
+                "path": "/",
+                "query_string": b"",
+                "headers": [(b"x-forwarded-for", forwarded.encode())],
+                "server": ("test", 80),
+                "client": (remote, 1234),
+            }
+        )
+
+    original_trusted_proxies = settings.auth_trusted_proxy_ips
+    settings.auth_trusted_proxy_ips = ""
+    direct_ip = _client_ip(request_with_ip("203.0.113.10", "198.51.100.7"))
+    check("untrusted X-Forwarded-For cannot spoof the throttle IP", direct_ip == "203.0.113.10")
+    settings.auth_trusted_proxy_ips = "10.0.0.0/8"
+    proxied_ip = _client_ip(
+        request_with_ip("10.0.0.4", "198.51.100.7, 203.0.113.8")
+    )
+    check("trusted proxy chain ignores caller-prepended spoof", proxied_ip == "203.0.113.8")
+    settings.auth_trusted_proxy_ips = original_trusted_proxies
+
     with TestClient(app) as client:
         # ---------------------------------------------------------- public API
         config = client.get("/auth/config")

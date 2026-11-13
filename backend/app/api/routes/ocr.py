@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
+from app.core.config import settings
 from app.services.ocr.reader import OCRReader
 
 router = APIRouter()
@@ -20,9 +21,13 @@ async def ocr(file: UploadFile = File(...)):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(400, "file must be an image")
     try:
-        data = await file.read()
+        # Read one byte beyond the configured cap so large uploads are rejected
+        # without buffering an unbounded request into memory.
+        data = await file.read(settings.max_ocr_upload_bytes + 1)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"failed to read upload: {e}")
+    if len(data) > settings.max_ocr_upload_bytes:
+        raise HTTPException(413, "image is too large")
     if not data:
         raise HTTPException(400, "empty image")
 

@@ -14,6 +14,7 @@ Security notes
 from __future__ import annotations
 
 import logging
+import ipaddress
 import re
 import sqlite3
 import time
@@ -176,8 +177,37 @@ def _clear_session_cookie(response: Response) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-    return forwarded or (request.client.host if request.client else "")
+    remote = request.client.host if request.client else ""
+    try:
+        remote_ip = ipaddress.ip_address(remote)
+    except ValueError:
+        return remote
+
+    trusted_networks = []
+    for value in settings.auth_trusted_proxy_ips.split(","):
+        try:
+            trusted_networks.append(ipaddress.ip_network(value.strip(), strict=False))
+        except ValueError:
+            continue
+
+    def trusted(address) -> bool:
+        return any(address in network for network in trusted_networks)
+
+    # Ignore caller-supplied forwarding headers unless the socket peer is an
+    # explicitly trusted proxy. Walk from the nearest proxy toward the client
+    # so a spoofed value prepended by the caller cannot pick the throttle key.
+    if not trusted(remote_ip):
+        return str(remote_ip)
+    chain = [part.strip() for part in request.headers.get("x-forwarded-for", "").split(",")]
+    current = remote_ip
+    for value in reversed([part for part in chain if part]):
+        if not trusted(current):
+            break
+        try:
+            current = ipaddress.ip_address(value)
+        except ValueError:
+            break
+    return str(current)
 
 
 def _app_url(path: str = "/") -> str:
