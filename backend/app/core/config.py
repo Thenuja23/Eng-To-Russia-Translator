@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # Reject absurdly large inputs instead of blocking the worker.
     max_text_chars: int = 20_000
     max_ocr_upload_bytes: int = 10 * 1024 * 1024
+    ocr_space_api_key: Optional[str] = None
 
     # ------------------------------------------------------ Google Translate ----
     # Optional Google Cloud Translation (Basic v2) engine. Set an API key to

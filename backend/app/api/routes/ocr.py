@@ -3,11 +3,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.core.config import settings
-from app.services.ocr.reader import OCRReader
+import httpx
+# OCRReader import removed; using OCR.space API instead
 
 router = APIRouter()
 
-_READER = OCRReader(thorough=True)
+
 
 
 class OCRResponse(BaseModel):
