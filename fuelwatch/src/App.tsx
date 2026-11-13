@@ -450,7 +450,7 @@ export default function App() {
                   <select
                     value={filterGrade}
                     onChange={(e) => setFilterGrade(e.target.value)}
-                    className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full sm:w-auto sm:min-w-[10rem] bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
                     <option value="All">{t.allGrades}</option>
                     <option value="Petrol 92">{t.petrol92}</option>
