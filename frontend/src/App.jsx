@@ -73,9 +73,9 @@ function AppShell() {
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/70 backdrop-blur-xl dark:bg-slate-950/70 dark:border-slate-700/50 shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center gap-3 md:gap-4">
+        <div className="max-w-7xl mx-auto px-3 md:px-6 py-2 md:py-0 md:h-16 flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap md:gap-4">
           {/* Brand */}
-          <div className="flex items-center gap-2.5 shrink-0 select-none">
+          <div className="flex min-w-0 items-center gap-2.5 shrink-0 select-none">
             <BrandMark />
             <span className="hidden sm:block leading-tight">
               <span className="block text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100">
@@ -89,7 +89,7 @@ function AppShell() {
 
           {/* Segmented tabs */}
           <div
-            className="flex-1 flex items-center gap-1 overflow-x-auto rounded-xl bg-gray-100/80 p-1 border border-gray-200/70 dark:bg-slate-900/70 dark:border-slate-700/60"
+            className="order-3 basis-full min-w-0 flex md:order-none md:basis-auto md:flex-1 items-center gap-1 overflow-x-auto mobile-tab-scroll rounded-xl bg-gray-100/80 p-1 border border-gray-200/70 dark:bg-slate-900/70 dark:border-slate-700/60"
             role="tablist"
             aria-label="Sections"
           >
@@ -103,7 +103,7 @@ function AppShell() {
                   aria-selected={active}
                   aria-current={active ? 'page' : undefined}
                   title={t.hint}
-                  className={`flex-1 min-w-max whitespace-nowrap rounded-lg px-3 md:px-4 py-1.5 text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  className={`flex-none md:flex-1 min-w-max whitespace-nowrap rounded-lg px-2.5 md:px-4 py-2 md:py-1.5 text-xs md:text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                     active
                       ? 'bg-white text-blue-700 shadow-sm border border-white dark:bg-slate-700 dark:text-blue-300 dark:border-slate-600'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-white/60 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-slate-800'
@@ -116,8 +116,8 @@ function AppShell() {
             })}
           </div>
 
-          <UserButton className="shrink-0" />
-          <ThemeToggle className="shrink-0" />
+          <UserButton className="ml-auto shrink-0 md:ml-0" />
+          <ThemeToggle className="shrink-0 !h-10 !px-2.5 md:!h-9 md:!px-3" />
         </div>
       </nav>
 

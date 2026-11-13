@@ -291,12 +291,12 @@ export default function WritingPage() {
   }, [])
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+    <div className="min-h-screen p-3 sm:p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-5 md:space-y-8 animate-fade-in">
         {/* Hero */}
-        <header className="text-center space-y-4 pt-2">
+        <header className="text-center space-y-3 md:space-y-4 pt-1 md:pt-2">
           {/* Company logo */}
-          <div className="mx-auto h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-[#ffffff] p-2 shadow-lg ring-1 ring-black/5 grid place-items-center">
+          <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 md:h-24 md:w-24 rounded-2xl bg-[#ffffff] p-1.5 md:p-2 shadow-lg ring-1 ring-black/5 grid place-items-center">
             <img
               src="/logo.png"
               alt="Company logo"
@@ -305,13 +305,13 @@ export default function WritingPage() {
             />
           </div>
           <p className="eyebrow">Type · Speak · Snap a photo</p>
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight gradient-text leading-[1.1]">
+          <h1 className="text-[1.75rem] sm:text-3xl md:text-5xl font-extrabold tracking-tight gradient-text leading-[1.1]">
             Russian Cursive Learning
-            <span className="block text-2xl md:text-4xl mt-2 font-bold opacity-90">
+            <span className="block text-xl sm:text-2xl md:text-4xl mt-1.5 md:mt-2 font-bold opacity-90">
               &amp; Reading Assistant
             </span>
           </h1>
-          <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             English ⇄ Russian, shown as block print and as real handwriting — with every
             email, date and course code kept intact.
           </p>
@@ -319,8 +319,8 @@ export default function WritingPage() {
 
         {/* Toolbar */}
         <div className="card overflow-visible">
-          <div className="card-body py-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
-            <div className="flex items-center gap-3">
+          <div className="card-body writing-toolbar py-3 sm:py-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center gap-3 sm:gap-x-6 sm:gap-y-4">
+            <div className="writing-control flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
               <label
                 htmlFor="mode-select"
                 className="eyebrow !text-gray-500 dark:!text-gray-400"
@@ -332,7 +332,7 @@ export default function WritingPage() {
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
                 aria-label="Input mode"
-                className="select-field !px-3 !py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
+                className="select-field w-full sm:w-auto max-w-full !px-3 !py-2 sm:!py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
               >
                 <option value="en-ru">English → Russian</option>
                 <option value="ru-cursive">Russian keyboard → English</option>
@@ -345,7 +345,7 @@ export default function WritingPage() {
               aria-hidden="true"
             />
 
-            <div className="flex items-center gap-3">
+            <div className="writing-control flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
               <label
                 htmlFor="engine-select"
                 className="eyebrow !text-gray-500 dark:!text-gray-400"
@@ -361,7 +361,7 @@ export default function WritingPage() {
                   engineOptions.find((item) => item.id === engine)?.description ||
                   'Translation engine'
                 }
-                className="select-field !px-3 !py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
+                className="select-field w-full sm:w-auto max-w-full !px-3 !py-2 sm:!py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
               >
                 {engineOptions.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -376,7 +376,7 @@ export default function WritingPage() {
               aria-hidden="true"
             />
 
-            <div className="flex items-center gap-3">
+            <div className="writing-control flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
               <label
                 htmlFor="font-select"
                 className="eyebrow !text-gray-500 dark:!text-gray-400"
@@ -388,7 +388,7 @@ export default function WritingPage() {
                 value={cursiveStyle}
                 onChange={(e) => setCursiveStyle(e.target.value)}
                 aria-label="Cursive font"
-                className="select-field !px-3 !py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
+                className="select-field w-full sm:w-auto max-w-full !px-3 !py-2 sm:!py-1.5 rounded-lg border border-gray-200/90 bg-white/90 dark:border-slate-700 dark:bg-slate-800/80 shadow-sm"
               >
                 {CURSIVE_STYLES.map((s) => (
                   <option key={s.id} value={s.id}>{s.label}</option>
@@ -400,7 +400,7 @@ export default function WritingPage() {
           {/* Status line */}
           <div
             aria-live="polite"
-            className="px-6 pb-4 flex flex-wrap items-center justify-center gap-2 min-h-[24px]"
+            className="px-3 sm:px-6 pb-3 sm:pb-4 flex flex-wrap items-center justify-center gap-2 min-h-[24px]"
           >
             {busy && (
               <span className="pill bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900 animate-soft-pulse">

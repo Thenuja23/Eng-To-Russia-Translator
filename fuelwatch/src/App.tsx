@@ -322,7 +322,7 @@ export default function App() {
       
       {/* GLOBAL TOP HEADER / NAVIGATION */}
       <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto min-w-0 px-3 sm:px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
           
           {/* Brand Logo */}
           <div className="flex items-center space-x-3">
@@ -343,10 +343,10 @@ export default function App() {
           </div>
 
           {/* Role Switcher Tabs */}
-          <div className="flex items-center bg-slate-900 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
+          <div className="fw-horizontal-scroll min-w-0 w-full md:w-auto flex items-center gap-0.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
             <button
               onClick={() => setActiveRole('driver')}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
+              className={`shrink-0 min-h-10 flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
                 activeRole === 'driver' 
                   ? 'bg-emerald-500 text-slate-950 shadow-md font-semibold' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
@@ -358,7 +358,7 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('station')}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
+              className={`shrink-0 min-h-10 flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
                 activeRole === 'station' 
                   ? 'bg-emerald-500 text-slate-950 shadow-md font-semibold' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
@@ -370,7 +370,7 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('dealer')}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
+              className={`shrink-0 min-h-10 flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
                 activeRole === 'dealer' 
                   ? 'bg-emerald-500 text-slate-950 shadow-md font-semibold' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
@@ -382,7 +382,7 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('government')}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
+              className={`shrink-0 min-h-10 flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
                 activeRole === 'government' 
                   ? 'bg-emerald-500 text-slate-950 shadow-md font-semibold' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
@@ -395,7 +395,7 @@ export default function App() {
 
           {/* Quick Language Toggle (Only shown or prominent for Driver app) */}
           {activeRole === 'driver' && (
-            <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800 self-end md:self-auto">
+            <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800 self-start md:self-auto">
               <Languages className="w-4 h-4 text-slate-400 ml-1.5" />
               {['EN', 'SI', 'TA'].map((l) => (
                 <button
@@ -415,7 +415,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT VIEW BASED ON ACTIVE ROLE */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+      <main className="flex-1 min-w-0 max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
 
         {/* ------------------------------------------------------------- */}
         {/* PERSPECTIVE 1: PUBLIC DRIVER APP & MAP                        */}
@@ -467,7 +467,7 @@ export default function App() {
               
               {/* Station List */}
               <div className="lg:col-span-7 space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-medium px-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-slate-400 font-medium px-1">
                   <span>SHOWING {filteredStations.length} STATIONS NEARBY</span>
                   <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin text-emerald-400" /> Auto-refreshing IoT stream</span>
                 </div>
@@ -482,18 +482,18 @@ export default function App() {
                         : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-white text-base md:text-lg">{st.name}</h3>
-                          <span className="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold text-white text-base md:text-lg break-words">{st.name}</h3>
+                          <span className="shrink-0 text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md">
                             {st.company}
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{st.address}</p>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                           <Clock className="w-3 h-3" /> Queue ~{st.queueMins} mins
                         </span>
@@ -528,7 +528,7 @@ export default function App() {
                       })}
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-400">
                       <span className="flex items-center gap-1.5">
                         <Truck className="w-3.5 h-3.5 text-amber-400" />
                         ETA: {st.bowserEta}
