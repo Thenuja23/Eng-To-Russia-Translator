@@ -50,10 +50,11 @@ function SetupCard() {
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30 space-y-2">
       <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-        AI is offline — the app still works with the local Opus-MT pipeline.
+        Cloud AI providers are not configured.
       </p>
       <p className="text-sm text-amber-800 dark:text-amber-300">
-        Add one or more provider keys on the server to switch the ensemble on:
+        The AI ensemble needs a provider key. Local Opus-MT translation remains available
+        on the Write tab. To enable the ensemble, add one or more keys on the server:
       </p>
       <pre className="text-xs overflow-x-auto rounded-lg bg-white/80 p-3 border border-amber-200 dark:bg-slate-900/80 dark:border-amber-900 text-gray-700 dark:text-gray-300">
 {`cd backend
@@ -304,7 +305,7 @@ export default function AiStudio() {
                   ? 'Ensemble active'
                   : status.mode === 'single'
                     ? 'Single provider active'
-                    : 'AI offline'
+                    : 'Cloud AI not configured'
                 : 'Checking…'}
             </h3>
           </div>
