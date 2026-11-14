@@ -487,10 +487,40 @@ export default function AiStudio() {
           </label>
           <label className="text-sm inline-flex items-center gap-2"><input type="checkbox" checked={preferences.history_enabled} onChange={(e) => updatePreference({ history_enabled: e.target.checked })}/>Save AI requests to my account history (off by default)</label>
           <div className="flex flex-col gap-2 text-sm"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={preferences.include_grammar} onChange={(e) => updatePreference({ include_grammar: e.target.checked })}/>Include grammar in explanations</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={preferences.include_examples} onChange={(e) => updatePreference({ include_examples: e.target.checked })}/>Include example sentences</label></div>
-          <div className="md:col-span-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-slate-800 dark:text-gray-300">
-            Connecting a personal key means submitted text is sent to that provider under its privacy terms and you pay its API charges. Keys are encrypted on this server and are never displayed again. Configure <code>AI_CREDENTIALS_ENCRYPTION_KEY</code> on the backend to enable personal key storage.
-            <div className="mt-2 flex flex-wrap gap-2"><input aria-label="Provider API key" type="password" autoComplete="off" value={providerKey} onChange={(e) => setProviderKey(e.target.value)} className="input-field" placeholder="Paste personal provider key"/>{[['openai','Connect OpenAI'],['anthropic','Connect Claude'],['perplexity','Connect Perplexity']].map(([id,label]) => <button key={id} type="button" className="btn-secondary btn-sm" onClick={() => connectKey(id)}>{label}</button>)}</div>
-            <div className="mt-2 flex gap-2">{(status?.connected_personal || []).map((p) => <button key={p} type="button" className="btn-ghost btn-sm" onClick={async () => { if (window.confirm(`Delete saved ${p} credential? This cannot be undone.`)) { await deleteAiCredential(p); setStatus(await aiStatus()) } }}>Disconnect {p}</button>)}</div>
+          <div className="md:col-span-2">
+            <h4 className="mb-2 font-semibold">Personal AI provider connections</h4>
+            <p className="mb-3 text-xs text-gray-600 dark:text-gray-300">Provider validation runs on the server. Keys are encrypted at rest, never returned to this page, and must be pasted again when updating. Text is sent to the chosen provider under its terms; personal API usage may incur charges.</p>
+            <div className="grid gap-3 lg:grid-cols-3">
+              {[
+                { id: 'openai', name: 'OpenAI', mark: 'O', url: 'https://platform.openai.com/api-keys' },
+                { id: 'anthropic', name: 'Claude', mark: 'A', url: 'https://platform.claude.com/settings/keys' },
+                { id: 'perplexity', name: 'Perplexity', mark: 'P', url: 'https://www.perplexity.ai/account/api/keys' },
+              ].map(({ id, name, mark, url }) => {
+                const connected = (status?.connected_personal || []).includes(id)
+                const state = connectionState[id] || (connected ? 'connected' : 'not_connected')
+                const styles = state === 'connected'
+                  ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300'
+                  : state === 'failed'
+                    ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                    : state === 'connecting'
+                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300'
+                const statusLabel = { connected: 'Connected', connecting: 'Connecting…', failed: 'Connection Failed', not_connected: 'Not Connected' }[state]
+                return <article key={id} className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2"><span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-lg bg-gray-100 font-bold dark:bg-slate-700">{mark}</span><h5 className="font-semibold">{name}</h5></div>
+                    <span role="status" className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs ${styles}`}><span aria-hidden="true" className={`h-2 w-2 rounded-full ${state === 'connected' ? 'bg-green-500' : state === 'failed' ? 'bg-red-500' : state === 'connecting' ? 'bg-blue-500' : 'bg-gray-400'}`}/>{statusLabel}</span>
+                  </div>
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm inline-flex">Connect {name}</a>
+                  <label className="mt-3 block text-xs font-medium" htmlFor={`api-key-${id}`}>{connected ? 'Replace saved API key' : 'Personal API key'}</label>
+                  <div className="mt-1 flex gap-1"><input id={`api-key-${id}`} type={visibleKeys[id] ? 'text' : 'password'} autoComplete="new-password" spellCheck="false" value={providerKeys[id] || ''} onChange={(e) => setProviderKeys((s) => ({ ...s, [id]: e.target.value }))} className="input-field min-w-0 flex-1" placeholder={connected ? '••••••••••••  (saved key)' : 'Paste API key'} aria-describedby={`key-note-${id}`}/><button type="button" className="btn-ghost btn-sm" aria-label={`${visibleKeys[id] ? 'Hide' : 'Show'} ${name} API key`} onClick={() => setVisibleKeys((s) => ({ ...s, [id]: !s[id] }))}>{visibleKeys[id] ? 'Hide' : 'Show'}</button></div>
+                  <p id={`key-note-${id}`} className="mt-1 text-[11px] text-gray-500">Saved keys are masked and cannot be retrieved.</p>
+                  <div className="mt-2 flex flex-wrap gap-2"><button type="button" className="btn-primary btn-sm" disabled={!providerKeys[id]?.trim() || state === 'connecting'} onClick={() => connectKey(id)}>{state === 'connecting' ? 'Validating…' : 'Save API Key'}</button>{connected && <button type="button" className="btn-ghost btn-sm" onClick={() => disconnectProvider(id)}>Disconnect</button>}</div>
+                  {connectionError[id] && <p role="alert" className="mt-2 text-xs text-red-700 dark:text-red-300">{connectionError[id]}</p>}
+                </article>
+              })}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">Personal key storage requires the server setting <code>AI_CREDENTIALS_ENCRYPTION_KEY</code>.</p>
           </div>
           {preferences.history_enabled && <div className="md:col-span-2"><div className="mb-2 flex flex-wrap gap-2"><input className="input-field" aria-label="Search AI history" placeholder="Search history" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)}/><select className="select-field" aria-label="Filter AI history by provider" value={historyProvider} onChange={(e) => setHistoryProvider(e.target.value)}><option value="">All providers</option><option value="openai">OpenAI</option><option value="anthropic">Claude</option><option value="perplexity">Perplexity</option></select><button className="btn-secondary btn-sm" onClick={refreshHistory}>Search history</button><button className="btn-ghost btn-sm" onClick={async () => { if (window.confirm('Clear your entire AI history?')) { await deleteAiHistory(); setHistory([]) } }}>Clear history</button></div>{history.length > 0 && <ul className="mt-3 space-y-2">{history.map((h) => <li key={h.id} className="rounded border p-2 text-xs"><span>{new Date(h.created_at).toLocaleString()} · {h.provider} / {h.model} · {h.mode}</span><p>{h.source} → {h.translated}</p><button className="btn-ghost btn-sm" onClick={() => { setText(h.source); setTranslation(h.translated) }}>Reuse</button><button className="btn-ghost btn-sm" onClick={async () => { await deleteAiHistory(h.id); setHistory(history.filter((x) => x.id !== h.id)) }}>Delete</button></li>)}</ul>}</div>}
         </div>
