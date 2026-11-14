@@ -302,6 +302,7 @@ export default function AiStudio() {
           answer that preserves your e-mails, dates and course codes and agrees most with
           the others — then shows you every candidate so nothing is hidden.
         </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">AI translations are suggestions, not guaranteed corrections. Review the result in context.</p>
       </header>
 
       {statusError && (
@@ -365,6 +366,9 @@ export default function AiStudio() {
                     className="textarea-field min-h-[140px]"
                     placeholder="Type or paste the text…"
                   />
+                  <div className="flex flex-wrap gap-2" aria-label="Russian grammar analysis shortcuts">
+                    {['Part of speech and word meaning', 'Noun gender and case', 'Verb infinitive, conjugation and aspect', 'Adjective agreement', 'Declension and conjugation', 'Sentence structure'].map((prompt) => <button key={prompt} type="button" className="btn-ghost btn-sm" onClick={() => setQuestion(`Analyze: ${prompt}. Explain at university learner level and include at least two practical examples.`)}>{prompt}</button>)}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="ai-translation" className="text-sm font-medium text-gray-700 dark:text-gray-300">
