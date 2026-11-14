@@ -203,39 +203,46 @@ def _account_ensemble(request: Request) -> tuple[Ensemble, dict | None]:
 
 
 @router.get("/status")
-def ai_status():
+def ai_status(request: Request):
     """Provider availability, limits and setup hints (no secrets)."""
-    return ensemble.status()
+    selected, user = _account_ensemble(request)
+    result = selected.status()
+    result["mode"] = result["mode"] if result["configured"] else "offline"
+    if user:
+        result["connected_personal"] = user_store.credential_names(user["id"])
+        result["preferences"] = user_store.preferences(user["id"])
+    return result
 
 
 @router.post("/translate")
 def ai_translate(req: AiTranslateRequest, request: Request):
     """Translate with all configured providers and return the consensus winner."""
     _guard(request, req.text)
-    return _run(
-        lambda: ensemble.translate(
-            req.text, src=req.src_lang, tgt=req.tgt_lang
-        )
-    )
+    selected, user = _account_ensemble(request)
+    prefs = user_store.preferences(user["id"]) if user else {}
+    mode = req.translation_mode or prefs.get("translation_mode", "accurate")
+    started = __import__("time").perf_counter()
+    result = _run(lambda: selected.translate(req.text, src=req.src_lang, tgt=req.tgt_lang, translation_mode=mode))
+    if user:
+        user_store.add_history(user["id"], req.text, result.get("text", ""), result.get("provider", ""), result.get("model", ""), mode, int((__import__("time").perf_counter()-started)*1000))
+    return result
 
 
 @router.post("/enhance")
 def ai_enhance(req: AiEnhanceRequest, request: Request):
     """Review and improve an existing translation, protecting all tokens."""
     _guard(request, req.text, req.translation)
-    return _run(
-        lambda: ensemble.enhance(
-            req.text, req.translation, src=req.src_lang, tgt=req.tgt_lang
-        )
-    )
+    selected, _ = _account_ensemble(request)
+    return _run(lambda: selected.enhance(req.text, req.translation, src=req.src_lang, tgt=req.tgt_lang))
 
 
 @router.post("/explain")
 def ai_explain(req: AiExplainRequest, request: Request):
     """Explain meaning, grammar and cursive reading for a text."""
     _guard(request, req.text)
+    selected, _ = _account_ensemble(request)
     return _run(
-        lambda: ensemble.explain(
+        lambda: selected.explain(
             req.text,
             req.translation or "",
             src=req.src_lang,
@@ -249,4 +256,5 @@ def ai_explain(req: AiExplainRequest, request: Request):
 def ai_vocab(req: AiVocabRequest, request: Request):
     """Word-by-word vocabulary analysis (EN + Sinhala, POS, grammar, examples)."""
     _guard(request, req.text)
-    return _run(lambda: ensemble.vocabulary(req.text))
+    selected, _ = _account_ensemble(request)
+    return _run(lambda: selected.vocabulary(req.text))
