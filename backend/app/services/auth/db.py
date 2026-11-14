@@ -61,6 +61,31 @@ CREATE TABLE IF NOT EXISTS oauth_states (
     expires_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ai_credentials (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, provider)
+);
+CREATE TABLE IF NOT EXISTS ai_preferences (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ai_history (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source TEXT NOT NULL,
+    translated TEXT NOT NULL,
+    provider TEXT,
+    model TEXT,
+    mode TEXT,
+    created_at TEXT NOT NULL,
+    latency_ms INTEGER,
+    token_usage INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_user ON auth_tokens(user_id, purpose);
 """

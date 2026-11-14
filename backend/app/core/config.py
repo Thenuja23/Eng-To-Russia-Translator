@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     ai_max_requests_per_minute: int = 20
     ai_cache_ttl_seconds: int = 900
     ai_temperature: float = 0.2
+    ai_credentials_encryption_key: Optional[str] = None
+    ai_history_enabled_by_default: bool = False
 
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"

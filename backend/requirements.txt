@@ -7,3 +7,4 @@ aiofiles==23.2.1
 httpx==0.25.0
 python-dotenv==1.0.0
 typing-extensions==4.8.0
+cryptography==42.0.8
