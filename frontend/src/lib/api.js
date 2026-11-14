@@ -150,7 +150,13 @@ export async function saveAiPreferences(preferences) {
 
 export async function saveAiCredential(provider, apiKey) {
   const res = await apiFetch(`/ai/credentials/${provider}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: apiKey, consent: true }) })
-  if (!res.ok) throw new Error(await parseError(res))
+  if (!res.ok) {
+    const detail = await parseError(res)
+    if (res.status === 404 && detail.toLowerCase() === 'not found') {
+      throw new Error('The backend does not have the provider connection route (404). Deploy or restart the current backend, including PUT /ai/credentials/{provider}.')
+    }
+    throw new Error(detail)
+  }
   aiStatusPromise = null
   return res.json()
 }

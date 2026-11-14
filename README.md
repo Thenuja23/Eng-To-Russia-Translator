@@ -198,6 +198,36 @@ Relevant settings (see `backend/.env.example`): `AI_ENABLED`,
 `AI_PROVIDER_ORDER`, `AI_MAX_REQUESTS_PER_MINUTE`, `AI_MAX_CHARS`,
 `AI_CACHE_TTL_SECONDS`, `AI_TIMEOUT_SECONDS`, and per-provider model names.
 
+### Vercel frontend and API backend
+
+The Vercel deployment proxies `/ai`, `/auth`, `/translation`, and the other
+API paths to FastAPI through a same-origin function. Set the Vercel project
+environment variable `BACKEND_URL` to the HTTPS origin of the deployed FastAPI
+service (for example, `https://your-api.example.com`, with no route suffix),
+then redeploy. The proxy preserves the user's session cookie and forwards API
+keys only in the request body to FastAPI; it does not log request data. The
+development Vite proxy continues to use `VITE_BACKEND_URL` or
+`http://127.0.0.1:8000`.
+
+If connecting a provider returns HTTP 404, check that the deployed backend
+includes `PUT /ai/credentials/{provider}` and restart/redeploy it. Provider
+validation failures are returned separately as useful 422/502 errors.
+
+### Vercel frontend and API backend
+
+The Vercel deployment proxies `/ai`, `/auth`, `/translation`, and the other
+API paths to FastAPI through a same-origin function. Set the Vercel project
+environment variable `BACKEND_URL` to the HTTPS origin of the deployed FastAPI
+service (for example, `https://your-api.example.com`, with no route suffix),
+then redeploy. The proxy preserves the user's session cookie and forwards API
+keys only in the request body to FastAPI; it does not log request data. The
+development Vite proxy continues to use `VITE_BACKEND_URL` or
+`http://127.0.0.1:8000`.
+
+If connecting a provider returns HTTP 404, check that the deployed backend
+includes `PUT /ai/credentials/{provider}` and restart/redeploy it. Provider
+validation failures are returned separately as useful 422/502 errors.
+
 ### Student provider keys, preferences, and history
 
 Signed-in students can connect personal provider keys from the AI tab. The

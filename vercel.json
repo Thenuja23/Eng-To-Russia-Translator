@@ -1,5 +1,13 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/translation/:path*", "destination": "/api/translation/:path*" },
+    { "source": "/text/:path*", "destination": "/api/text/:path*" },
+    { "source": "/feedback/:path*", "destination": "/api/feedback/:path*" },
+    { "source": "/ocr/:path*", "destination": "/api/ocr/:path*" },
+    { "source": "/ai/:path*", "destination": "/api/ai/:path*" },
+    { "source": "/vocab/:path*", "destination": "/api/vocab/:path*" },
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/auth/:path*", "destination": "/api/auth/:path*" }
   ]
 }
