@@ -62,9 +62,23 @@ def add_history(user_id: str, source: str, translated: str, provider: str, model
         con.execute("DELETE FROM ai_history WHERE user_id=? AND id NOT IN (SELECT id FROM ai_history WHERE user_id=? ORDER BY created_at DESC LIMIT ?)", (user_id, user_id, max(0, settings.ai_history_retention_entries)))
 
 
-def list_history(user_id: str) -> list[dict]:
+def list_history(user_id: str, query: str = "", provider: str = "", start: str = "", end: str = "") -> list[dict]:
+    clauses = ["user_id=?"]
+    args: list = [user_id]
+    if query:
+        clauses.append("(source LIKE ? OR translated LIKE ?)")
+        args.extend([f"%{query}%", f"%{query}%"])
+    if provider:
+        clauses.append("provider=?")
+        args.append(provider)
+    if start:
+        clauses.append("created_at>=?")
+        args.append(start)
+    if end:
+        clauses.append("created_at<=?")
+        args.append(end)
     with db.connect() as con:
-        rows = con.execute("SELECT id,source,translated,provider,model,mode,created_at,latency_ms,token_usage FROM ai_history WHERE user_id=? ORDER BY created_at DESC LIMIT ?", (user_id, settings.ai_history_retention_entries)).fetchall()
+        rows = con.execute(f"SELECT id,source,translated,provider,model,mode,created_at,latency_ms,token_usage FROM ai_history WHERE {' AND '.join(clauses)} ORDER BY created_at DESC LIMIT ?", (*args, settings.ai_history_retention_entries)).fetchall()
     return [dict(r) for r in rows]
 
 

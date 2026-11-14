@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -118,11 +118,11 @@ def delete_credential(provider: str, request: Request, confirm: bool = False):
 
 
 @router.get("/history")
-def get_ai_history(request: Request):
+def get_ai_history(request: Request, q: str = Query("", max_length=200), provider: str = "", start: str = "", end: str = ""):
     user = session_user(request.cookies.get(settings.auth_cookie_name))
     if not user:
         raise HTTPException(401, "Sign in to view AI history.")
-    return user_store.list_history(user["id"])
+    return user_store.list_history(user["id"], q, provider, start, end)
 
 
 @router.delete("/history")
