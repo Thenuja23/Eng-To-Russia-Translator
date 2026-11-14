@@ -435,6 +435,36 @@ export default function AiStudio() {
         </div>
       </section>
 
+      <section className="card" aria-labelledby="ai-settings-title">
+        <div className="card-header"><h3 id="ai-settings-title" className="text-lg font-semibold">Learning and provider settings</h3></div>
+        <div className="card-body grid gap-4 md:grid-cols-2">
+          <label className="text-sm">Provider routing
+            <select className="select-field mt-1" value={preferences.provider_mode} onChange={(e) => updatePreference({ provider_mode: e.target.value })}>
+              <option value="auto">Auto (recommended)</option><option value="custom">Custom personal-key combination</option><option value="personal">Personal keys only</option>
+            </select>
+          </label>
+          <label className="text-sm">Translation mode
+            <select className="select-field mt-1" value={preferences.translation_mode} onChange={(e) => updatePreference({ translation_mode: e.target.value })}>
+              <option value="accurate">Accurate translation</option><option value="natural">Natural Russian</option><option value="student">Student learning</option><option value="academic">Academic Russian</option><option value="simple">Simple Russian</option><option value="context">Context-aware translation</option><option value="grammar">Grammar correction</option>
+            </select>
+          </label>
+          <fieldset className="text-sm"><legend className="font-medium">Enabled providers</legend>{[['openai','OpenAI'],['anthropic','Claude'],['perplexity','Perplexity']].map(([id,label]) => <label key={id} className="mr-4 inline-flex items-center gap-2"><input type="checkbox" checked={preferences.providers.includes(id)} onChange={(e) => updatePreference({ providers: e.target.checked ? [...preferences.providers,id] : preferences.providers.filter((p) => p !== id) })}/>{label}</label>)}</fieldset>
+          <label className="text-sm">Russian proficiency
+            <select className="select-field mt-1" value={preferences.level} onChange={(e) => updatePreference({ level: e.target.value })}><option>beginner</option><option>intermediate</option><option>advanced</option></select>
+          </label>
+          <label className="text-sm">Explanation language
+            <select className="select-field mt-1" value={preferences.explanation_language} onChange={(e) => updatePreference({ explanation_language: e.target.value })}><option value="en">English</option><option value="ru">Русский</option><option value="si">සිංහල</option></select>
+          </label>
+          <label className="text-sm inline-flex items-center gap-2"><input type="checkbox" checked={preferences.history_enabled} onChange={(e) => updatePreference({ history_enabled: e.target.checked })}/>Save AI requests to my account history (off by default)</label>
+          <div className="md:col-span-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-slate-800 dark:text-gray-300">
+            Connecting a personal key means submitted text is sent to that provider under its privacy terms and you pay its API charges. Keys are encrypted on this server and are never displayed again. Configure <code>AI_CREDENTIALS_ENCRYPTION_KEY</code> on the backend to enable personal key storage.
+            <div className="mt-2 flex flex-wrap gap-2"><input aria-label="Provider API key" type="password" autoComplete="off" value={providerKey} onChange={(e) => setProviderKey(e.target.value)} className="input-field" placeholder="Paste personal provider key"/>{[['openai','Connect OpenAI'],['anthropic','Connect Claude'],['perplexity','Connect Perplexity']].map(([id,label]) => <button key={id} type="button" className="btn-secondary btn-sm" onClick={() => connectKey(id)}>{label}</button>)}</div>
+            <div className="mt-2 flex gap-2">{(status?.connected_personal || []).map((p) => <button key={p} type="button" className="btn-ghost btn-sm" onClick={async () => { if (window.confirm(`Delete saved ${p} credential? This cannot be undone.`)) { await deleteAiCredential(p); setStatus(await aiStatus()) } }}>Disconnect {p}</button>)}</div>
+          </div>
+          {preferences.history_enabled && <div className="md:col-span-2"><button className="btn-secondary btn-sm" onClick={refreshHistory}>Load AI history</button>{history.length > 0 && <><button className="btn-ghost btn-sm ml-2" onClick={async () => { if (window.confirm('Clear your entire AI history?')) { await deleteAiHistory(); setHistory([]) } }}>Clear history</button><ul className="mt-3 space-y-2">{history.map((h) => <li key={h.id} className="rounded border p-2 text-xs"><span>{new Date(h.created_at).toLocaleString()} · {h.provider} / {h.model} · {h.mode}</span><p>{h.source} → {h.translated}</p><button className="btn-ghost btn-sm" onClick={async () => { await deleteAiHistory(h.id); setHistory(history.filter((x) => x.id !== h.id)) }}>Delete</button></li>)}</ul></>}</div>}
+        </div>
+      </section>
+
       {result && (
         <BestAnswer
           result={result}
