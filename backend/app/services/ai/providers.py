@@ -38,6 +38,40 @@ class Provider:
         self.cfg = cfg
         self.timeout = timeout
 
+    def validate_key(self) -> tuple[bool, str]:
+        """Check credentials with a provider endpoint without retaining/logging the key."""
+        headers = {"Content-Type": "application/json"}
+        if self.cfg.kind == "anthropic":
+            headers.update({"x-api-key": self.cfg.api_key or "", "anthropic-version": "2023-06-01"})
+            url = f"{self.cfg.base_url.rstrip('/')}/models?limit=1"
+            method, payload = "GET", None
+        elif self.name == "perplexity":
+            # Perplexity has no public key-check endpoint; this minimal request
+            # validates auth and incurs at most a one-token provider charge.
+            headers["Authorization"] = f"Bearer {self.cfg.api_key}"
+            url = f"{self.cfg.base_url.rstrip('/')}/chat/completions"
+            method, payload = "POST", {"model": self.cfg.model, "messages": [{"role": "user", "content": "Reply with OK."}], "max_tokens": 1, "temperature": 0}
+        else:
+            headers["Authorization"] = f"Bearer {self.cfg.api_key}"
+            url = f"{self.cfg.base_url.rstrip('/')}/models"
+            method, payload = "GET", None
+        try:
+            with httpx.Client(timeout=min(self.timeout, 15.0)) as client:
+                response = client.request(method, url, headers=headers, json=payload)
+        except httpx.TimeoutException:
+            return False, "The provider did not respond in time. Try again."
+        except httpx.HTTPError:
+            return False, "Could not reach the provider. Check your connection and try again."
+        if response.is_success:
+            return True, "Provider credentials validated."
+        if response.status_code in (401, 403):
+            return False, "The provider rejected this API key. Check the key and its permissions."
+        if response.status_code == 429:
+            return False, "The provider rate limited the validation request. Try again shortly."
+        if response.status_code >= 500:
+            return False, "The provider is temporarily unavailable. Try again later."
+        return False, "The provider could not validate this key. Check the key and selected account."
+
     # -- identity ---------------------------------------------------------
     @property
     def name(self) -> str:
