@@ -155,7 +155,7 @@ class _Retryable(ProviderError):
     """Transient provider failure (retried once)."""
 
 
-def build_providers(order: Optional[str] = None) -> List[Provider]:
+def build_providers(order: Optional[str] = None, credentials: Optional[dict[str, str]] = None, models: Optional[dict[str, str]] = None) -> List[Provider]:
     """Build the configured provider list in the requested order."""
     catalog = {
         "openai": ProviderConfig(
@@ -180,6 +180,13 @@ def build_providers(order: Optional[str] = None) -> List[Provider]:
             base_url=settings.perplexity_base_url,
         ),
     }
+    credentials = credentials or {}
+    models = models or {}
+    for name, cfg in catalog.items():
+        if name in credentials:
+            cfg.api_key = credentials[name]
+        if models.get(name):
+            cfg.model = models[name]
     raw = order if order is not None else settings.ai_provider_order
     names = [n.strip().lower() for n in raw.split(",") if n.strip()]
     providers = [

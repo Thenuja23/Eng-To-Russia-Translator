@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     ai_temperature: float = 0.2
     ai_credentials_encryption_key: Optional[str] = None
     ai_history_enabled_by_default: bool = False
+    ai_history_retention_entries: int = 500
 
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
