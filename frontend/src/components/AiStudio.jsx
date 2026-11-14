@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { aiEnhance, aiExplain, aiStatus, aiTranslate } from '../lib/api'
+import { aiEnhance, aiExplain, aiStatus, aiTranslate, aiPreferences, saveAiPreferences, saveAiCredential, deleteAiCredential, aiHistory, deleteAiHistory } from '../lib/api'
 import CopyButton from './CopyButton'
 
 const PROVIDER_NAMES = {
@@ -220,12 +220,16 @@ export default function AiStudio() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [explanation, setExplanation] = useState(null)
+  const [preferences, setPreferences] = useState({ provider_mode: 'auto', providers: ['openai', 'anthropic', 'perplexity'], translation_mode: 'accurate', level: 'intermediate', explanation_language: 'en', include_grammar: false, include_examples: true, history_enabled: false })
+  const [providerKey, setProviderKey] = useState('')
+  const [history, setHistory] = useState([])
 
   useEffect(() => {
     let alive = true
     aiStatus()
       .then((s) => alive && setStatus(s))
       .catch((e) => alive && setStatusError(e.message))
+    aiPreferences().then((p) => alive && setPreferences((old) => ({ ...old, ...p }))).catch(() => {})
     return () => {
       alive = false
     }
@@ -257,7 +261,20 @@ export default function AiStudio() {
   }
 
   const onTranslate = () =>
-    run('translate', () => aiTranslate(text, src, tgt))
+    run('translate', () => aiTranslate(text, src, tgt, preferences.translation_mode))
+
+  const updatePreference = async (next) => {
+    const value = { ...preferences, ...next }
+    setPreferences(value)
+    try { await saveAiPreferences(value); const s = await aiStatus(); setStatus(s) } catch (e) { setError(e.message) }
+  }
+
+  const connectKey = async (provider) => {
+    if (!providerKey || !window.confirm('The provider receives text you submit under its own privacy terms. You pay for API usage. The key is stored encrypted on this server and will not be shown again. Connect this provider?')) return
+    try { await saveAiCredential(provider, providerKey); setProviderKey(''); const s = await aiStatus(); setStatus(s) } catch (e) { setError(e.message) }
+  }
+
+  const refreshHistory = async () => { try { setHistory(await aiHistory()) } catch (e) { setError(e.message) } }
 
   const onEnhance = () =>
     run('enhance', () => aiEnhance(text, translation, src, tgt))

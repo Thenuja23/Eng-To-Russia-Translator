@@ -110,8 +110,8 @@ async function aiPost(path, payload) {
 }
 
 /** Multi-provider translation (consensus of OpenAI/Claude/Perplexity). */
-export function aiTranslate(text, srcLang = 'en', tgtLang = 'ru') {
-  return aiPost('translate', { text, src_lang: srcLang, tgt_lang: tgtLang })
+export function aiTranslate(text, srcLang = 'en', tgtLang = 'ru', translationMode = 'accurate') {
+  return aiPost('translate', { text, src_lang: srcLang, tgt_lang: tgtLang, translation_mode: translationMode })
 }
 
 /** Ask the ensemble to review and improve an existing translation. */
