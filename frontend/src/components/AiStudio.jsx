@@ -221,7 +221,10 @@ export default function AiStudio() {
   const [result, setResult] = useState(null)
   const [explanation, setExplanation] = useState(null)
   const [preferences, setPreferences] = useState({ provider_mode: 'auto', providers: ['openai', 'anthropic', 'perplexity'], translation_mode: 'accurate', level: 'intermediate', explanation_language: 'en', include_grammar: false, include_examples: true, history_enabled: false })
-  const [providerKey, setProviderKey] = useState('')
+  const [providerKeys, setProviderKeys] = useState({})
+  const [visibleKeys, setVisibleKeys] = useState({})
+  const [connectionState, setConnectionState] = useState({})
+  const [connectionError, setConnectionError] = useState({})
   const [history, setHistory] = useState([])
   const [historyQuery, setHistoryQuery] = useState('')
   const [historyProvider, setHistoryProvider] = useState('')
@@ -272,8 +275,29 @@ export default function AiStudio() {
   }
 
   const connectKey = async (provider) => {
-    if (!providerKey || !window.confirm('The provider receives text you submit under its own privacy terms. You pay for API usage. The key is stored encrypted on this server and will not be shown again. Connect this provider?')) return
-    try { await saveAiCredential(provider, providerKey); setProviderKey(''); const s = await aiStatus(); setStatus(s) } catch (e) { setError(e.message) }
+    const key = providerKeys[provider]?.trim()
+    if (!key) return
+    if (!window.confirm('Text you submit will be sent to this provider under its own privacy terms. You pay any API charges. The key is encrypted on this server and will not be shown again. Continue?')) return
+    setConnectionState((s) => ({ ...s, [provider]: 'connecting' }))
+    setConnectionError((s) => ({ ...s, [provider]: '' }))
+    try {
+      await saveAiCredential(provider, key)
+      setProviderKeys((s) => ({ ...s, [provider]: '' }))
+      setConnectionState((s) => ({ ...s, [provider]: 'connected' }))
+      const status = await aiStatus(); setStatus(status)
+    } catch (e) {
+      setConnectionState((s) => ({ ...s, [provider]: 'failed' }))
+      setConnectionError((s) => ({ ...s, [provider]: e.message }))
+    }
+  }
+
+  const disconnectProvider = async (provider) => {
+    if (!window.confirm(`Delete your saved ${provider} API key? This cannot be undone.`)) return
+    try {
+      await deleteAiCredential(provider)
+      setConnectionState((s) => ({ ...s, [provider]: 'not_connected' }))
+      setStatus(await aiStatus())
+    } catch (e) { setConnectionError((s) => ({ ...s, [provider]: e.message })) }
   }
 
   const refreshHistory = async () => { try { setHistory(await aiHistory({ q: historyQuery, provider: historyProvider })) } catch (e) { setError(e.message) } }
