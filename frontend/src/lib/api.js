@@ -144,18 +144,21 @@ export async function aiPreferences() {
 export async function saveAiPreferences(preferences) {
   const res = await apiFetch('/ai/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preferences) })
   if (!res.ok) throw new Error(await parseError(res))
+  aiStatusPromise = null
   return res.json()
 }
 
 export async function saveAiCredential(provider, apiKey) {
   const res = await apiFetch(`/ai/credentials/${provider}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: apiKey, consent: true }) })
   if (!res.ok) throw new Error(await parseError(res))
+  aiStatusPromise = null
   return res.json()
 }
 
 export async function deleteAiCredential(provider) {
   const res = await apiFetch(`/ai/credentials/${provider}?confirm=true`, { method: 'DELETE' })
   if (!res.ok) throw new Error(await parseError(res))
+  aiStatusPromise = null
   return res.json()
 }
 
