@@ -198,6 +198,42 @@ Relevant settings (see `backend/.env.example`): `AI_ENABLED`,
 `AI_PROVIDER_ORDER`, `AI_MAX_REQUESTS_PER_MINUTE`, `AI_MAX_CHARS`,
 `AI_CACHE_TTL_SECONDS`, `AI_TIMEOUT_SECONDS`, and per-provider model names.
 
+### Student provider keys, preferences, and history
+
+Signed-in students can connect personal provider keys from the AI tab. The
+backend stores them encrypted in the account database and never returns them
+after saving. Set `AI_CREDENTIALS_ENCRYPTION_KEY` to a generated Fernet key
+before enabling this feature:
+
+```bash
+cd backend
+.venv/bin/python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+```
+
+Keep this key in the deployment secret manager, separate from database backups.
+Back up the encrypted SQLite database and the encryption key through separate
+restricted channels. Restoring the database requires the matching key; losing
+it makes saved student credentials unrecoverable. Never export decrypted keys
+or put the encryption key in source control. Deleting a connected provider
+requires explicit confirmation in the UI. Provider consent explains that
+submitted text is processed under the provider's terms and personal API charges
+apply.
+
+Provider routing supports Auto (which respects the student's enabled provider
+list), custom personal-key combinations, and personal-keys-only mode. Personal
+keys override server keys for the same provider; custom/personal-only modes do
+not fall back to administrator credentials. AI request history is off by
+default and is stored per account only after the student enables it. It can be
+deleted entry by entry or cleared entirely; the server retention cap is
+`AI_HISTORY_RETENTION_ENTRIES` (default 500). Account-owned keys, preferences,
+and history use foreign-key cascade deletion with the account record.
+
+Translation modes include accurate, natural, student learning, academic,
+simple, context-aware, and grammar correction. AI results are generated
+suggestions; compare the exposed provider candidates and review the result for
+your context. The local Opus-MT path remains available when cloud providers are
+disconnected.
+
 ## Tests
 
 ```bash
