@@ -240,14 +240,24 @@ def ai_enhance(req: AiEnhanceRequest, request: Request):
 def ai_explain(req: AiExplainRequest, request: Request):
     """Explain meaning, grammar and cursive reading for a text."""
     _guard(request, req.text)
-    selected, _ = _account_ensemble(request)
+    selected, user = _account_ensemble(request)
+    if user:
+        prefs = user_store.preferences(user["id"])
+        addenda = [f"Explain at {prefs.get('level', 'intermediate')} university learner level.", f"Write explanations in {prefs.get('explanation_language', 'en')}."]
+        if prefs.get("include_grammar"):
+            addenda.append("Include relevant grammar and sentence structure analysis.")
+        if prefs.get("include_examples"):
+            addenda.append("Include at least two useful example sentences.")
+        question = "\n".join([req.question or "", *addenda])
+    else:
+        question = req.question or ""
     return _run(
         lambda: selected.explain(
             req.text,
             req.translation or "",
             src=req.src_lang,
             tgt=req.tgt_lang,
-            question=req.question or "",
+            question=question,
         )
     )
 
