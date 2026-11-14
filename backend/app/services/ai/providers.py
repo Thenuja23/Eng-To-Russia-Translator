@@ -7,6 +7,7 @@ API key is configured are ever called, and keys never leave the backend.
 from __future__ import annotations
 
 import time
+import threading
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -15,6 +16,8 @@ import httpx
 from app.core.config import settings
 
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
+_health_lock = threading.Lock()
+_health: dict[str, dict] = {}
 
 
 class ProviderError(RuntimeError):
@@ -130,6 +133,13 @@ class Provider:
         if not self.configured:
             raise ProviderError(f"{self.name}: missing API key")
 
+        started = time.time()
+        now = time.time()
+        with _health_lock:
+            state = _health.setdefault(self.name, {"failures": 0, "open_until": 0, "last_success": None, "last_failure": None, "latency_ms": None, "error_category": None})
+            if state["open_until"] > now:
+                raise ProviderError(f"{self.name}: temporarily unavailable after repeated failures")
+
         temp = settings.ai_temperature if temperature is None else temperature
         last_error: Optional[Exception] = None
         for attempt in (0, 1):
@@ -141,14 +151,27 @@ class Provider:
                 text = (text or "").strip()
                 if not text:
                     raise ProviderError(f"{self.name}: empty response")
+                with _health_lock:
+                    state.update(failures=0, open_until=0, last_success=time.time(), latency_ms=int((time.time()-started)*1000), error_category=None)
                 return text
             except _Retryable as exc:
                 last_error = exc
                 if attempt == 0:
                     time.sleep(0.6)
             except ProviderError:
+                self._record_failure(state, started, "provider")
                 raise
+        self._record_failure(state, started, "transient")
         raise ProviderError(str(last_error) if last_error else f"{self.name}: failed")
+
+    def _record_failure(self, state: dict, started: float, category: str) -> None:
+        with _health_lock:
+            state["failures"] += 1
+            state["last_failure"] = time.time()
+            state["latency_ms"] = int((time.time()-started)*1000)
+            state["error_category"] = category
+            if state["failures"] >= 3:
+                state["open_until"] = time.time() + 60
 
 
 class _Retryable(ProviderError):
