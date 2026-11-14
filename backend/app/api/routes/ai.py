@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -47,6 +47,100 @@ class AiExplainRequest(BaseModel):
 
 class AiVocabRequest(BaseModel):
     text: str = Field(..., min_length=1)
+
+
+class PreferenceRequest(BaseModel):
+    provider_mode: str = "auto"
+    providers: list[str] = ["openai", "anthropic", "perplexity"]
+    translation_mode: str = "accurate"
+    level: str = "intermediate"
+    explanation_language: str = "en"
+    include_grammar: bool = False
+    include_examples: bool = True
+    history_enabled: bool = False
+
+
+class CredentialRequest(BaseModel):
+    api_key: str = Field(..., min_length=8, max_length=500)
+    consent: bool = False
+
+
+@router.get("/preferences")
+def get_ai_preferences(request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to manage AI preferences.")
+    prefs = user_store.preferences(user["id"])
+    prefs["connected_providers"] = user_store.credential_names(user["id"])
+    return prefs
+
+
+@router.put("/preferences")
+def put_ai_preferences(req: PreferenceRequest, request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to manage AI preferences.")
+    allowed_providers = {"openai", "anthropic", "perplexity"}
+    if req.provider_mode not in {"auto", "custom", "personal"} or not set(req.providers) <= allowed_providers:
+        raise HTTPException(422, "Unsupported provider selection.")
+    if req.translation_mode not in {"accurate", "natural", "student", "academic", "simple", "context", "grammar"}:
+        raise HTTPException(422, "Unsupported translation mode.")
+    data = req.model_dump()
+    user_store.save_preferences(user["id"], data)
+    return {**data, "connected_providers": user_store.credential_names(user["id"])}
+
+
+@router.put("/credentials/{provider}")
+def put_credential(provider: str, req: CredentialRequest, request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to connect a provider.")
+    if provider not in {"openai", "anthropic", "perplexity"}:
+        raise HTTPException(404, "Unknown provider.")
+    if not req.consent:
+        raise HTTPException(400, "Explicit provider privacy and billing consent is required.")
+    try:
+        user_store.save_credential(user["id"], provider, req.api_key.strip())
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"provider": provider, "connected": True, "key_returned": False}
+
+
+@router.delete("/credentials/{provider}")
+def delete_credential(provider: str, request: Request, confirm: bool = False):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to manage providers.")
+    if not confirm:
+        raise HTTPException(400, "Set confirm=true to delete this credential.")
+    user_store.delete_credential(user["id"], provider)
+    return {"provider": provider, "connected": False}
+
+
+@router.get("/history")
+def get_ai_history(request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to view AI history.")
+    return user_store.list_history(user["id"])
+
+
+@router.delete("/history")
+def clear_ai_history(request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to clear AI history.")
+    user_store.delete_history(user["id"])
+    return {"deleted": True}
+
+
+@router.delete("/history/{entry_id}")
+def delete_ai_history_entry(entry_id: str, request: Request):
+    user = session_user(request.cookies.get(settings.auth_cookie_name))
+    if not user:
+        raise HTTPException(401, "Sign in to delete AI history.")
+    user_store.delete_history(user["id"], entry_id)
+    return {"deleted": True}
 
 
 def _guard(request: Request, *texts: str) -> None:
