@@ -135,6 +135,42 @@ export function aiExplain({ text, translation = '', srcLang = 'en', tgtLang = 'r
   })
 }
 
+export async function aiPreferences() {
+  const res = await apiFetch('/ai/preferences')
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+export async function saveAiPreferences(preferences) {
+  const res = await apiFetch('/ai/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preferences) })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+export async function saveAiCredential(provider, apiKey) {
+  const res = await apiFetch(`/ai/credentials/${provider}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: apiKey, consent: true }) })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+export async function deleteAiCredential(provider) {
+  const res = await apiFetch(`/ai/credentials/${provider}?confirm=true`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+export async function aiHistory() {
+  const res = await apiFetch('/ai/history')
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
+export async function deleteAiHistory(id) {
+  const res = await apiFetch(id ? `/ai/history/${encodeURIComponent(id)}` : '/ai/history', { method: 'DELETE' })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json()
+}
+
 /**
  * Word-by-word vocabulary analysis (English + Sinhala meanings, part of
  * speech, grammar notes and two example sentences per word).
