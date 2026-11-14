@@ -19,6 +19,10 @@ def _fernet() -> Fernet:
         raise RuntimeError("AI_CREDENTIALS_ENCRYPTION_KEY must be a Fernet key.") from exc
 
 
+def ensure_encryption_ready() -> None:
+    _fernet()
+
+
 def credential_names(user_id: str) -> list[str]:
     with db.connect() as con:
         return [r[0] for r in con.execute("SELECT provider FROM ai_credentials WHERE user_id=?", (user_id,))]

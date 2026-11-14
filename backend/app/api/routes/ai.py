@@ -100,10 +100,15 @@ def put_credential(provider: str, req: CredentialRequest, request: Request):
     if not req.consent:
         raise HTTPException(400, "Explicit provider privacy and billing consent is required.")
     try:
+        user_store.ensure_encryption_ready()
+        validator = build_providers(provider, {provider: req.api_key.strip()})[0]
+        valid, message = validator.validate_key()
+        if not valid:
+            raise HTTPException(422, message)
         user_store.save_credential(user["id"], provider, req.api_key.strip())
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
-    return {"provider": provider, "connected": True, "key_returned": False}
+    return {"provider": provider, "connected": True, "validated": True, "key_returned": False}
 
 
 @router.delete("/credentials/{provider}")
