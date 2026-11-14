@@ -214,16 +214,26 @@ class Ensemble:
     # ------------------------------------------------------------------ #
     # public tasks
     # ------------------------------------------------------------------ #
-    def translate(self, text: str, src: str = "en", tgt: str = "ru") -> dict:
+    def translate(self, text: str, src: str = "en", tgt: str = "ru", translation_mode: str = "accurate") -> dict:
         self._require_text(text)
-        cache_key = self._cache_key("translate", [text, src, tgt])
+        mode_instructions = {
+            "accurate": "Prioritize grammatical and contextual accuracy.",
+            "natural": "Write fluent, natural Russian as a native speaker would.",
+            "academic": "Use formal academic Russian.",
+            "simple": "Use beginner-friendly Russian vocabulary and simple structures.",
+            "context": "Use the full context and intended meaning; preserve ambiguity where needed.",
+            "student": "Translate accurately and briefly explain key grammar and vocabulary.",
+            "grammar": "Correct grammar while preserving meaning; briefly identify important corrections.",
+        }
+        mode_instruction = mode_instructions.get(translation_mode, mode_instructions["accurate"])
+        cache_key = self._cache_key("translate", [text, src, tgt, translation_mode])
         cached = self.cache.get(cache_key)
         if cached is not None:
             return {**cached, "cached": True}
 
         protector, protected, mapping = self._protect(text, prefix="AIT")
         candidates = self._fanout(
-            prompts.translate_system(src, tgt),
+            prompts.translate_system(src, tgt) + "\n\nMode: " + mode_instruction,
             prompts.translate_user(protected, src, tgt),
         )
         self._restore_candidates(candidates, [(protector, mapping)])
@@ -238,6 +248,7 @@ class Ensemble:
             "translated_text": best.text,
             "src": src,
             "tgt": tgt,
+            "translation_mode": translation_mode,
         })
         self.cache.set(cache_key, result)
         return result
