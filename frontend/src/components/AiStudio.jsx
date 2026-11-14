@@ -223,6 +223,8 @@ export default function AiStudio() {
   const [preferences, setPreferences] = useState({ provider_mode: 'auto', providers: ['openai', 'anthropic', 'perplexity'], translation_mode: 'accurate', level: 'intermediate', explanation_language: 'en', include_grammar: false, include_examples: true, history_enabled: false })
   const [providerKey, setProviderKey] = useState('')
   const [history, setHistory] = useState([])
+  const [historyQuery, setHistoryQuery] = useState('')
+  const [historyProvider, setHistoryProvider] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -274,7 +276,7 @@ export default function AiStudio() {
     try { await saveAiCredential(provider, providerKey); setProviderKey(''); const s = await aiStatus(); setStatus(s) } catch (e) { setError(e.message) }
   }
 
-  const refreshHistory = async () => { try { setHistory(await aiHistory()) } catch (e) { setError(e.message) } }
+  const refreshHistory = async () => { try { setHistory(await aiHistory({ q: historyQuery, provider: historyProvider })) } catch (e) { setError(e.message) } }
 
   const onEnhance = () =>
     run('enhance', () => aiEnhance(text, translation, src, tgt))
@@ -466,7 +468,7 @@ export default function AiStudio() {
             <div className="mt-2 flex flex-wrap gap-2"><input aria-label="Provider API key" type="password" autoComplete="off" value={providerKey} onChange={(e) => setProviderKey(e.target.value)} className="input-field" placeholder="Paste personal provider key"/>{[['openai','Connect OpenAI'],['anthropic','Connect Claude'],['perplexity','Connect Perplexity']].map(([id,label]) => <button key={id} type="button" className="btn-secondary btn-sm" onClick={() => connectKey(id)}>{label}</button>)}</div>
             <div className="mt-2 flex gap-2">{(status?.connected_personal || []).map((p) => <button key={p} type="button" className="btn-ghost btn-sm" onClick={async () => { if (window.confirm(`Delete saved ${p} credential? This cannot be undone.`)) { await deleteAiCredential(p); setStatus(await aiStatus()) } }}>Disconnect {p}</button>)}</div>
           </div>
-          {preferences.history_enabled && <div className="md:col-span-2"><button className="btn-secondary btn-sm" onClick={refreshHistory}>Load AI history</button>{history.length > 0 && <><button className="btn-ghost btn-sm ml-2" onClick={async () => { if (window.confirm('Clear your entire AI history?')) { await deleteAiHistory(); setHistory([]) } }}>Clear history</button><ul className="mt-3 space-y-2">{history.map((h) => <li key={h.id} className="rounded border p-2 text-xs"><span>{new Date(h.created_at).toLocaleString()} · {h.provider} / {h.model} · {h.mode}</span><p>{h.source} → {h.translated}</p><button className="btn-ghost btn-sm" onClick={async () => { await deleteAiHistory(h.id); setHistory(history.filter((x) => x.id !== h.id)) }}>Delete</button></li>)}</ul></>}</div>}
+          {preferences.history_enabled && <div className="md:col-span-2"><div className="mb-2 flex flex-wrap gap-2"><input className="input-field" aria-label="Search AI history" placeholder="Search history" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)}/><select className="select-field" aria-label="Filter AI history by provider" value={historyProvider} onChange={(e) => setHistoryProvider(e.target.value)}><option value="">All providers</option><option value="openai">OpenAI</option><option value="anthropic">Claude</option><option value="perplexity">Perplexity</option></select><button className="btn-secondary btn-sm" onClick={refreshHistory}>Search history</button><button className="btn-ghost btn-sm" onClick={async () => { if (window.confirm('Clear your entire AI history?')) { await deleteAiHistory(); setHistory([]) } }}>Clear history</button></div>{history.length > 0 && <ul className="mt-3 space-y-2">{history.map((h) => <li key={h.id} className="rounded border p-2 text-xs"><span>{new Date(h.created_at).toLocaleString()} · {h.provider} / {h.model} · {h.mode}</span><p>{h.source} → {h.translated}</p><button className="btn-ghost btn-sm" onClick={() => { setText(h.source); setTranslation(h.translated) }}>Reuse</button><button className="btn-ghost btn-sm" onClick={async () => { await deleteAiHistory(h.id); setHistory(history.filter((x) => x.id !== h.id)) }}>Delete</button></li>)}</ul>}</div>}
         </div>
       </section>
 

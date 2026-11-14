@@ -159,8 +159,9 @@ export async function deleteAiCredential(provider) {
   return res.json()
 }
 
-export async function aiHistory() {
-  const res = await apiFetch('/ai/history')
+export async function aiHistory(filters = {}) {
+  const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
+  const res = await apiFetch(`/ai/history${params.size ? `?${params}` : ''}`)
   if (!res.ok) throw new Error(await parseError(res))
   return res.json()
 }
